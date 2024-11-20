@@ -38,6 +38,7 @@ typedef struct
 
 typedef struct {
 	int frame_no;
+    float time_elapsed;
 } TIMER;
 
 #endif

@@ -8,14 +8,15 @@
 
 #define MAP_HEIGHT 30
 #define MAP_WIDTH 30
-#define STATUS_HEIGHT 5
-#define STATUS_X 0
-#define STATUS_Y 30
 #define MAP_X 0
 #define MAP_Y 0
 
+#define STATUS_HEIGHT 5
+#define STATUS_X 0
+#define STATUS_Y 30
+
 #define FRAME_TIME 16.66 // time interval between frames in ms
-#define FBM_PLAYER 15    // frames between movement | FBM_PLAYER*FRAME_TIME =>How often can player move
+#define FBM_PLAYER 15    // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
 
 //------------------------------------------------
 //----------------- INIT FUNCTIONS ---------------
@@ -31,6 +32,7 @@ WINDOW *InitGame()
     init_pair(GREEN_COLOR, COLOR_WHITE, COLOR_GREEN);
     init_pair(RED_COLOR, COLOR_WHITE, COLOR_RED);
 
+    srand(time(NULL));
     cbreak();
     curs_set(0);
     noecho();
@@ -66,7 +68,7 @@ CAR *InitCar(int color, int length, int headX, DIR dir, char headShape, char bod
     return tempCar;
 }
 // function initializng a subwindow
-WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x)
+WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x, char*title)
 {
     WIN *tempWin = (WIN *)malloc(sizeof(WIN));
     tempWin->height = height;
@@ -75,6 +77,7 @@ WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x)
     tempWin->y = y;
     tempWin->win = subwin(parent, width, height, y, x);
     box(tempWin->win, 0, 0);
+    mvwprintw(tempWin->win, 0, 3, title);
     return tempWin;
 }
 
@@ -82,6 +85,7 @@ TIMER *InitTimer()
 {
     TIMER *timer = (TIMER *)malloc(sizeof(TIMER));
     timer->frame_no = 1;
+    timer->time_elapsed=0;
     return timer;
 }
 
@@ -91,8 +95,13 @@ TIMER *InitTimer()
 
 void UpdateTimer(TIMER *timer)
 {
-    timer->frame_no++;
     usleep(FRAME_TIME * 1000); // program sleeps FRAME_TIME[ms] between frames
+    timer->frame_no++;
+    timer->time_elapsed+=FRAME_TIME;
+}
+
+void UpdateStatus(WINDOW*status,TIMER*timer){
+    mvwprintw(status,2,5,"Time elapsed: %.2fs", timer->time_elapsed/1000);
 }
 
 void DrawPlayer(WINDOW *win, PLAYER *player)
@@ -144,25 +153,19 @@ void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
 
 int main()
 {
-    srand(time(NULL));
-
     // initializing stuff
     WINDOW *stdwin = InitGame();
-    WIN *map = InitWindow(stdwin, MAP_HEIGHT, MAP_WIDTH, MAP_Y, MAP_X);
-    WIN *status = InitWindow(stdwin, STATUS_HEIGHT, MAP_WIDTH, STATUS_Y, STATUS_X);
+    WIN *map = InitWindow(stdwin, MAP_HEIGHT, MAP_WIDTH, MAP_Y, MAP_X, "frogger");
+    WIN *status = InitWindow(stdwin, STATUS_HEIGHT, MAP_WIDTH, STATUS_Y, STATUS_X,"status");
 
     PLAYER *player = InitPlayer(MAP_HEIGHT- 2, MAP_WIDTH / 2, 1, MAP_HEIGHT - 2, 1, MAP_WIDTH - 2, 'O');
+
     TIMER *timer = InitTimer();
+
     nodelay(map->win, true);
-    mvwprintw(map->win, 0, 3, "frogger");
-    mvwprintw(status->win, 0, 3, "status");
-    int laneCount = MAP_WIDTH - 2;
-    CAR *carArray[laneCount];
-    carArray[2] = InitCar(2, 1, 1, RIGHT, 'O', '=', TRUE, FALSE);
 
     // basic gameloop
     char ch;
-    bool isRunning = true;
 
     DrawPlayer(map->win, player);
     while ((ch = wgetch(map->win)) != 'x')
@@ -171,10 +174,10 @@ int main()
         {
             PlayerMovement(map->win, player, ch, timer);
         }
-        DrawCar(carArray[2], map->win, 2);
         wrefresh(status->win);
         wrefresh(map->win);
         UpdateTimer(timer);
+        UpdateStatus(status->win,timer);
     }
 
     endwin();

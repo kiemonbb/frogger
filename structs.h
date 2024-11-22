@@ -18,9 +18,11 @@ typedef struct
 {
     int color;
     int length;
-    int headX;
+    int leftX;
+    int rightX;
     DIR dir;
-    char headShape;
+    char headShapeLeft;
+    char headShapeRight;
     char bodyShape;
     bool isBouncing;
     bool isHidden;

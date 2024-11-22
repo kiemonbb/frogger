@@ -54,21 +54,31 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     return tempPlayer;
 }
 
-CAR *InitCar(int color, int length, int headX, DIR dir, char headShape, char bodyShape, bool isBouncing, bool isHidden)
+CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, bool isBouncing, bool isHidden)
 {
     CAR *tempCar = (CAR *)malloc(sizeof(CAR));
     tempCar->color = color;
     tempCar->length = length;
-    tempCar->headX = headX;
+    if (dir == RIGHT)
+    {
+        tempCar->rightX = headX;
+        tempCar->leftX = headX - length + 1;
+    }
+    else
+    {
+        tempCar->leftX = headX;
+        tempCar->rightX = headX + length - 1;
+    }
     tempCar->dir = dir;
-    tempCar->headShape = headShape;
+    tempCar->headShapeLeft = headShapeLeft;
+    tempCar->headShapeRight = headShapeRight;
     tempCar->bodyShape = bodyShape;
     tempCar->isBouncing = isBouncing;
     tempCar->isBouncing = isBouncing;
     return tempCar;
 }
 // function initializng a subwindow
-WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x, char*title)
+WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x, char *title)
 {
     WIN *tempWin = (WIN *)malloc(sizeof(WIN));
     tempWin->height = height;
@@ -85,7 +95,7 @@ TIMER *InitTimer()
 {
     TIMER *timer = (TIMER *)malloc(sizeof(TIMER));
     timer->frame_no = 1;
-    timer->time_elapsed=0;
+    timer->time_elapsed = 0;
     return timer;
 }
 
@@ -97,11 +107,12 @@ void UpdateTimer(TIMER *timer)
 {
     usleep(FRAME_TIME * 1000); // program sleeps FRAME_TIME[ms] between frames
     timer->frame_no++;
-    timer->time_elapsed+=FRAME_TIME;
+    timer->time_elapsed += FRAME_TIME;
 }
 
-void UpdateStatus(WINDOW*status,TIMER*timer){
-    mvwprintw(status,2,5,"Time elapsed: %.2fs", timer->time_elapsed/1000);
+void UpdateStatus(WINDOW *status, TIMER *timer)
+{
+    mvwprintw(status, 2, 5, "Time elapsed: %.2fs", timer->time_elapsed / 1000);
 }
 
 void DrawPlayer(WINDOW *win, PLAYER *player)
@@ -111,12 +122,38 @@ void DrawPlayer(WINDOW *win, PLAYER *player)
     wattroff(win, COLOR_PAIR(GREEN_COLOR) | A_BOLD);
 }
 
+//checking if mcaddch x is inside our window
+void MvAddCharCheck(WINDOW *win, int y, int x, char ch)
+{
+    if (x > 0 && x < MAP_WIDTH-1)
+    {
+        mvwaddch(win, y, x, ch);
+    }
+}
+
 void DrawCar(CAR *car, WINDOW *win, int y)
 {
-    if (car != NULL)
+    if (car != NULL || car->isHidden == false)
     {
         wattron(win, COLOR_PAIR(car->color));
-        mvwaddch(win, y, car->headX, car->headShape);
+        if (car->dir == RIGHT)
+        {
+            int x = car->rightX;
+            MvAddCharCheck(win, y, x, car->headShapeRight);
+            for (x = x - 1; x >= car->leftX; x--)
+            {
+                MvAddCharCheck(win, y, x, car->bodyShape);
+            }
+        }
+        else
+        {
+            int x = car->leftX;
+            MvAddCharCheck(win, y, x, car->headShapeLeft);
+            for (x = x + 1; x <= car->rightX; x++)
+            {
+                MvAddCharCheck(win, y, x, car->bodyShape);
+            }
+        }
         wattroff(win, COLOR_PAIR(car->color));
     }
 }
@@ -156,9 +193,9 @@ int main()
     // initializing stuff
     WINDOW *stdwin = InitGame();
     WIN *map = InitWindow(stdwin, MAP_HEIGHT, MAP_WIDTH, MAP_Y, MAP_X, "frogger");
-    WIN *status = InitWindow(stdwin, STATUS_HEIGHT, MAP_WIDTH, STATUS_Y, STATUS_X,"status");
+    WIN *status = InitWindow(stdwin, STATUS_HEIGHT, MAP_WIDTH, STATUS_Y, STATUS_X, "status");
 
-    PLAYER *player = InitPlayer(MAP_HEIGHT- 2, MAP_WIDTH / 2, 1, MAP_HEIGHT - 2, 1, MAP_WIDTH - 2, 'O');
+    PLAYER *player = InitPlayer(MAP_HEIGHT - 2, MAP_WIDTH / 2, 1, MAP_HEIGHT - 2, 1, MAP_WIDTH - 2, 'O');
 
     TIMER *timer = InitTimer();
 
@@ -166,6 +203,8 @@ int main()
 
     // basic gameloop
     char ch;
+    CAR*car = InitCar(RED_COLOR,8,28,RIGHT,'<','>','=',FALSE,FALSE);
+    DrawCar(car,map->win,6);
 
     DrawPlayer(map->win, player);
     while ((ch = wgetch(map->win)) != 'x')
@@ -177,7 +216,7 @@ int main()
         wrefresh(status->win);
         wrefresh(map->win);
         UpdateTimer(timer);
-        UpdateStatus(status->win,timer);
+        UpdateStatus(status->win, timer);
     }
 
     endwin();

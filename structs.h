@@ -8,6 +8,12 @@ typedef enum
     RIGHT,
 } DIR;
 
+typedef enum{
+    SUPERFAST = 15,
+    FAST = 10,
+    SLOW = 5,
+}SPEED;
+
 typedef struct
 {
     WINDOW *win;
@@ -20,6 +26,8 @@ typedef struct
     int length;
     int leftX;
     int rightX;
+    int frame;
+    int speed;
     DIR dir;
     char headShapeLeft;
     char headShapeRight;
@@ -27,6 +35,10 @@ typedef struct
     bool isBouncing;
     bool isHidden;
 } CAR;
+
+typedef struct{
+    CAR*car;
+} LANE;
 
 typedef struct
 {

@@ -16,7 +16,7 @@
 #define STATUS_Y 30
 
 #define FRAME_TIME 16.66 // time interval between frames in ms
-#define FBM_PLAYER 15    // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
+#define FBM_PLAYER 10    // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
 
 //------------------------------------------------
 //----------------- INIT FUNCTIONS ---------------
@@ -46,6 +46,7 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     tempPlayer->x = x;
 
     // min and max of frogs position
+    tempPlayer->frame = 1;
     tempPlayer->minY = minY;
     tempPlayer->maxY = maxY;
     tempPlayer->maxX = maxX;
@@ -54,7 +55,7 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     return tempPlayer;
 }
 
-CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, bool isBouncing, bool isHidden)
+CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, bool isBouncing, bool isHidden, SPEED speed)
 {
     CAR *tempCar = (CAR *)malloc(sizeof(CAR));
     tempCar->color = color;
@@ -69,12 +70,14 @@ CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char
         tempCar->leftX = headX;
         tempCar->rightX = headX + length - 1;
     }
+    tempCar->frame = 1;
+    tempCar->speed = speed;
     tempCar->dir = dir;
     tempCar->headShapeLeft = headShapeLeft;
     tempCar->headShapeRight = headShapeRight;
     tempCar->bodyShape = bodyShape;
     tempCar->isBouncing = isBouncing;
-    tempCar->isBouncing = isBouncing;
+    tempCar->isHidden = isHidden;
     return tempCar;
 }
 // function initializng a subwindow
@@ -100,19 +103,16 @@ TIMER *InitTimer()
 }
 
 //------------------------------------------------
-//---------------- OTHER FUNCTIONS ---------------
+//---------------- DRAW FUNCTIONS ----------------
 //------------------------------------------------
 
-void UpdateTimer(TIMER *timer)
+// checking if mvaddch x is inside our window
+void MvAddCharCheck(WINDOW *win, int y, int x, char ch)
 {
-    usleep(FRAME_TIME * 1000); // program sleeps FRAME_TIME[ms] between frames
-    timer->frame_no++;
-    timer->time_elapsed += FRAME_TIME;
-}
-
-void UpdateStatus(WINDOW *status, TIMER *timer)
-{
-    mvwprintw(status, 2, 5, "Time elapsed: %.2fs", timer->time_elapsed / 1000);
+    if (x > 0 && x < MAP_WIDTH - 1)
+    {
+        mvwaddch(win, y, x, ch);
+    }
 }
 
 void DrawPlayer(WINDOW *win, PLAYER *player)
@@ -122,18 +122,9 @@ void DrawPlayer(WINDOW *win, PLAYER *player)
     wattroff(win, COLOR_PAIR(GREEN_COLOR) | A_BOLD);
 }
 
-//checking if mcaddch x is inside our window
-void MvAddCharCheck(WINDOW *win, int y, int x, char ch)
-{
-    if (x > 0 && x < MAP_WIDTH-1)
-    {
-        mvwaddch(win, y, x, ch);
-    }
-}
-
 void DrawCar(CAR *car, WINDOW *win, int y)
 {
-    if (car != NULL || car->isHidden == false)
+    if (car != NULL && car->isHidden == FALSE)
     {
         wattron(win, COLOR_PAIR(car->color));
         if (car->dir == RIGHT)
@@ -156,6 +147,22 @@ void DrawCar(CAR *car, WINDOW *win, int y)
         }
         wattroff(win, COLOR_PAIR(car->color));
     }
+}
+
+//------------------------------------------------
+//---------------- OTHER FUNCTIONS ---------------
+//------------------------------------------------
+
+void UpdateTimer(TIMER *timer)
+{
+    usleep(FRAME_TIME * 1000); // program sleeps FRAME_TIME[ms] between frames
+    timer->frame_no++;
+    timer->time_elapsed += FRAME_TIME;
+}
+
+void UpdateStatus(WINDOW *status, TIMER *timer)
+{
+    mvwprintw(status, 2, 5, "Time elapsed: %.2fs", timer->time_elapsed / 1000);
 }
 
 void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
@@ -187,7 +194,6 @@ void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
     }
     flushinp();
 }
-
 int main()
 {
     // initializing stuff
@@ -203,8 +209,6 @@ int main()
 
     // basic gameloop
     char ch;
-    CAR*car = InitCar(RED_COLOR,8,28,RIGHT,'<','>','=',FALSE,FALSE);
-    DrawCar(car,map->win,6);
 
     DrawPlayer(map->win, player);
     while ((ch = wgetch(map->win)) != 'x')

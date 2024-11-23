@@ -4,8 +4,8 @@
 
 typedef enum
 {
-    LEFT,
-    RIGHT,
+    LEFT = 0,
+    RIGHT = 1,
 } DIR;
 
 typedef enum{
@@ -33,7 +33,7 @@ typedef struct
     char headShapeRight;
     char bodyShape;
     bool isBouncing;
-    bool isHidden;
+    bool isVisible;
 } CAR;
 
 typedef struct{

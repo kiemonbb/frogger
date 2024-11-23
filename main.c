@@ -5,15 +5,16 @@
 #include "structs.h"
 #define GREEN_COLOR 1
 #define RED_COLOR 2
+#define BLUE_COLOR 3
 
-#define MAP_HEIGHT 30
-#define MAP_WIDTH 30
+#define MAP_HEIGHT 35
+#define MAP_WIDTH 100
 #define MAP_X 0
 #define MAP_Y 0
 
 #define STATUS_HEIGHT 5
 #define STATUS_X 0
-#define STATUS_Y 30
+#define STATUS_Y MAP_HEIGHT
 
 #define FRAME_TIME 16.66 // time interval between frames in ms
 #define FBM_PLAYER 10    // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
@@ -31,6 +32,7 @@ WINDOW *InitGame()
     start_color();
     init_pair(GREEN_COLOR, COLOR_WHITE, COLOR_GREEN);
     init_pair(RED_COLOR, COLOR_WHITE, COLOR_RED);
+    init_pair(BLUE_COLOR, COLOR_WHITE, COLOR_BLUE);
 
     srand(time(NULL));
     cbreak();
@@ -55,7 +57,7 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     return tempPlayer;
 }
 
-CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, bool isBouncing, bool isHidden, SPEED speed)
+CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, bool isBouncing, bool isVisible, SPEED speed)
 {
     CAR *tempCar = (CAR *)malloc(sizeof(CAR));
     tempCar->color = color;
@@ -77,7 +79,7 @@ CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char
     tempCar->headShapeRight = headShapeRight;
     tempCar->bodyShape = bodyShape;
     tempCar->isBouncing = isBouncing;
-    tempCar->isHidden = isHidden;
+    tempCar->isVisible = isVisible;
     return tempCar;
 }
 // function initializng a subwindow
@@ -124,7 +126,7 @@ void DrawPlayer(WINDOW *win, PLAYER *player)
 
 void DrawCar(CAR *car, WINDOW *win, int y)
 {
-    if (car != NULL && car->isHidden == FALSE)
+    if (car != NULL && car->isVisible == TRUE)
     {
         wattron(win, COLOR_PAIR(car->color));
         if (car->dir == RIGHT)
@@ -162,7 +164,7 @@ void UpdateTimer(TIMER *timer)
 
 void UpdateStatus(WINDOW *status, TIMER *timer)
 {
-    mvwprintw(status, 2, 5, "Time elapsed: %.2fs", timer->time_elapsed / 1000);
+    mvwprintw(status, STATUS_HEIGHT/2, MAP_WIDTH/2-10, "Time elapsed: %.2fs", timer->time_elapsed / 1000);
 }
 
 void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
@@ -194,6 +196,24 @@ void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
     }
     flushinp();
 }
+
+void MoveCar(CAR*car,TIMER*timer,WINDOW*win,int y)
+{
+    if (timer->frame_no - car->frame >= car->speed)
+    {
+        if(car->dir==LEFT){
+            car->leftX-=1;
+            car->rightX-=1;
+        }
+        if(car->dir==RIGHT){
+            car->leftX+=1;
+            car->rightX+=1;
+        }
+        DrawCar(car,win,y);
+        car->frame = timer->frame_no;
+    }
+}
+
 int main()
 {
     // initializing stuff
@@ -209,6 +229,12 @@ int main()
 
     // basic gameloop
     char ch;
+
+    LANE * lanes = (LANE*)malloc(sizeof(LANE)*MAP_HEIGHT);
+    for(int i = 2;i<MAP_HEIGHT-2;i++){
+        lanes[i].car = InitCar(rand()%3+1,rand()%5+5,rand()%MAP_WIDTH,rand()%2,'<','>','X',FALSE,rand()%3,SUPERFAST);
+        DrawCar(lanes[i].car,map->win,i);
+    }
 
     DrawPlayer(map->win, player);
     while ((ch = wgetch(map->win)) != 'x')

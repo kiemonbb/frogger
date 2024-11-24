@@ -8,7 +8,7 @@
 #define BLUE_COLOR 3
 
 #define MAP_HEIGHT 35
-#define MAP_WIDTH 100
+#define MAP_WIDTH 30
 #define MAP_X 0
 #define MAP_Y 0
 
@@ -18,6 +18,10 @@
 
 #define FRAME_TIME 16.66 // time interval between frames in ms
 #define FBM_PLAYER 10    // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
+
+#define SLOW_CAR 10
+#define FAST_CAR 5
+#define SUPERFAST_CAR 3
 
 //------------------------------------------------
 //----------------- INIT FUNCTIONS ---------------
@@ -57,7 +61,7 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     return tempPlayer;
 }
 
-CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, bool isBouncing, bool isVisible, SPEED speed)
+CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, bool isBouncing, bool exists, SPEED speed)
 {
     CAR *tempCar = (CAR *)malloc(sizeof(CAR));
     tempCar->color = color;
@@ -73,13 +77,23 @@ CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char
         tempCar->rightX = headX + length - 1;
     }
     tempCar->frame = 1;
-    tempCar->speed = speed;
+    switch(speed){
+        case 0:
+            tempCar->speed=SUPERFAST_CAR;
+            break;
+        case 1:
+            tempCar->speed=FAST_CAR;
+            break;
+        case 2:
+            tempCar->speed=SLOW_CAR;
+            break;
+    }
     tempCar->dir = dir;
     tempCar->headShapeLeft = headShapeLeft;
     tempCar->headShapeRight = headShapeRight;
     tempCar->bodyShape = bodyShape;
     tempCar->isBouncing = isBouncing;
-    tempCar->isVisible = isVisible;
+    tempCar->exists = exists;
     return tempCar;
 }
 // function initializng a subwindow
@@ -96,6 +110,15 @@ WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x, char *title
     return tempWin;
 }
 
+LANE* InitLanes()
+{
+    LANE*lanes = (LANE*)malloc(sizeof(LANE)*MAP_HEIGHT);
+    for(int i =2;i<MAP_HEIGHT-2;i++){
+        lanes[i].car = InitCar(rand()%2+2,rand()%5+5,rand()%MAP_WIDTH,rand()%2,'<','>','X',FALSE,rand()%3,rand()%3);
+    }
+    return lanes;
+}
+
 TIMER *InitTimer()
 {
     TIMER *timer = (TIMER *)malloc(sizeof(TIMER));
@@ -108,7 +131,7 @@ TIMER *InitTimer()
 //---------------- DRAW FUNCTIONS ----------------
 //------------------------------------------------
 
-// checking if mvaddch x is inside our window
+// checking if mvwaddch x is inside our window
 void MvAddCharCheck(WINDOW *win, int y, int x, char ch)
 {
     if (x > 0 && x < MAP_WIDTH - 1)
@@ -126,7 +149,7 @@ void DrawPlayer(WINDOW *win, PLAYER *player)
 
 void DrawCar(CAR *car, WINDOW *win, int y)
 {
-    if (car != NULL && car->isVisible == TRUE)
+    if (car->exists)
     {
         wattron(win, COLOR_PAIR(car->color));
         if (car->dir == RIGHT)
@@ -202,10 +225,13 @@ void MoveCar(CAR*car,TIMER*timer,WINDOW*win,int y)
     if (timer->frame_no - car->frame >= car->speed)
     {
         if(car->dir==LEFT){
+            MvAddCharCheck(win,y,car->rightX,' ');
             car->leftX-=1;
             car->rightX-=1;
+
         }
         if(car->dir==RIGHT){
+            MvAddCharCheck(win,y,car->leftX,' ');
             car->leftX+=1;
             car->rightX+=1;
         }
@@ -230,11 +256,7 @@ int main()
     // basic gameloop
     char ch;
 
-    LANE * lanes = (LANE*)malloc(sizeof(LANE)*MAP_HEIGHT);
-    for(int i = 2;i<MAP_HEIGHT-2;i++){
-        lanes[i].car = InitCar(rand()%3+1,rand()%5+5,rand()%MAP_WIDTH,rand()%2,'<','>','X',FALSE,rand()%3,SUPERFAST);
-        DrawCar(lanes[i].car,map->win,i);
-    }
+    LANE * lanes = InitLanes();
 
     DrawPlayer(map->win, player);
     while ((ch = wgetch(map->win)) != 'x')
@@ -243,6 +265,10 @@ int main()
         {
             PlayerMovement(map->win, player, ch, timer);
         }
+        for(int i = 2;i<MAP_HEIGHT-2;i++){
+            MoveCar(lanes[i].car,timer,map->win,i);
+            DrawCar(lanes[i].car,map->win,i);
+       }
         wrefresh(status->win);
         wrefresh(map->win);
         UpdateTimer(timer);

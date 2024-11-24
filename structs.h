@@ -9,9 +9,9 @@ typedef enum
 } DIR;
 
 typedef enum{
-    SUPERFAST = 15,
-    FAST = 10,
-    SLOW = 5,
+    SUPERFAST = 0,
+    FAST = 1,
+    SLOW = 2,
 }SPEED;
 
 typedef struct
@@ -32,8 +32,8 @@ typedef struct
     char headShapeLeft;
     char headShapeRight;
     char bodyShape;
+    bool exists;
     bool isBouncing;
-    bool isVisible;
 } CAR;
 
 typedef struct{

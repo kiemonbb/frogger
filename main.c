@@ -9,18 +9,18 @@
 #define BLACK_COLOR 4
 #define WHITE_COLOR 5
 
-#define MAP_HEIGHT 35
+#define MAP_HEIGHT 30
 #define MAP_WIDTH 30
 
 #define STATUS_HEIGHT 5
 #define STATUS_Y MAP_HEIGHT
 
 #define FRAME_TIME 16.66 // time interval between frames in ms
-#define FBM_PLAYER 12    // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
+#define FBM_PLAYER 10    // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
 
-#define SLOW_CAR 10
-#define FAST_CAR 5
-#define SUPERFAST_CAR 3
+#define SLOW_CAR 12
+#define FAST_CAR 7
+#define SUPERFAST_CAR 5
 
 #define RA(min, max) ( (min) + rand() % ((max) - (min) + 1) )	
 
@@ -64,7 +64,7 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     return tempPlayer;
 }
 
-CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, bool isBouncing, bool exists, SPEED speed)
+CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, CARTYPE carType, bool exists, SPEED speed)
 {
     CAR *tempCar = (CAR *)malloc(sizeof(CAR));
     tempCar->color = color;
@@ -96,7 +96,7 @@ CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char
     tempCar->headShapeLeft = headShapeLeft;
     tempCar->headShapeRight = headShapeRight;
     tempCar->bodyShape = bodyShape;
-    tempCar->isBouncing = isBouncing;
+    tempCar->carType = carType;
     tempCar->exists = exists;
     return tempCar;
 }
@@ -119,7 +119,7 @@ LANE *InitLanes()
     LANE *lanes = (LANE *)malloc(sizeof(LANE) * (MAP_HEIGHT - 4));
     for (int i = 0; i <= MAP_HEIGHT - 4; i++)
     {
-        lanes[i].car = InitCar(rand() % 2 + 2, rand() % 5 + 5, rand() % MAP_WIDTH, rand() % 2, '<', '>', 'X', rand() % 2, rand() % 3, rand() % 3);
+        lanes[i].car = InitCar(RA(2,3), RA(4,8), RA(3,MAP_WIDTH-3), RA(0,1), '<', '>', 'X', RA(0,1), RA(0,2), RA(0,2));
     }
     return lanes;
 }
@@ -239,9 +239,13 @@ void MoveCar(CAR *car, TIMER *timer, WIN *win, int y)
     {
         if (car->dir == LEFT)
         {
-            if (car->isBouncing && car->leftX == win->x + 1)
+            if (car->carType == BOUNCING && car->leftX == win->x + 1)
             {
                 car->dir = RIGHT;
+            }
+            else if(car->carType ==WRAPPING && car->rightX == 0){
+                car->leftX = MAP_WIDTH-2;
+                car->rightX = MAP_WIDTH-2+car->length-1;
             }
             else
             {
@@ -251,12 +255,19 @@ void MoveCar(CAR *car, TIMER *timer, WIN *win, int y)
         }
         else if (car->dir == RIGHT)
         {
-            if (car->isBouncing && car->rightX == win->width - 2)
+            if (car->carType == BOUNCING && car->rightX == win->width - 2)
             {
                 car->dir = LEFT;
             }
-            car->leftX += 1;
-            car->rightX += 1;
+            else if(car->carType ==WRAPPING && car->leftX == MAP_WIDTH-1){
+                car->leftX = -car->length;
+                car->rightX = 1;
+            }
+            else{
+                car->leftX += 1;
+                car->rightX += 1;
+            }
+
         }
         car->frame = timer->frame_no;
     }
@@ -265,6 +276,7 @@ void Welcome(WINDOW *win)
 {
     mvwprintw(win, 2, 2, "Press any key to start the game");
     wgetch(win);
+    flushinp();
     wclear(win);
     wrefresh(win);
 }
@@ -330,7 +342,8 @@ int main()
 
     MainLoop(player,map,status,timer,lanes);
     GameOver(status);
+
     endwin();
-    
+
     return 0;
 }

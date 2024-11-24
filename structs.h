@@ -14,6 +14,11 @@ typedef enum{
     SLOW = 2,
 }SPEED;
 
+typedef enum{
+    BOUNCING = 0,
+    WRAPPING = 1,
+    DISAPPEARING = 2,
+}CARTYPE;
 typedef struct
 {
     WINDOW *win;
@@ -33,7 +38,7 @@ typedef struct
     char headShapeRight;
     char bodyShape;
     bool exists;
-    bool isBouncing;
+    CARTYPE carType;
 } CAR;
 
 typedef struct{

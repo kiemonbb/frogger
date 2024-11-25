@@ -37,6 +37,7 @@ typedef struct
     char headShapeLeft;
     char headShapeRight;
     char bodyShape;
+    bool isFriendly;
     bool exists;
     CARTYPE carType;
 } CAR;

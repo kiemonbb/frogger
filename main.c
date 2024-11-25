@@ -67,10 +67,17 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     return tempPlayer;
 }
 
-CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, CARTYPE carType, bool exists, SPEED speed)
+CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, CARTYPE carType, bool isFriendly, bool exists, SPEED speed)
 {
     CAR *tempCar = (CAR *)malloc(sizeof(CAR));
-    tempCar->color = color;
+    if (isFriendly)
+    {
+        tempCar->color = GREEN_COLOR;
+    }
+    else
+    {
+        tempCar->color = color;
+    }
     tempCar->length = length;
     if (dir == RIGHT)
     {
@@ -100,6 +107,7 @@ CAR *InitCar(int color, int length, int headX, DIR dir, char headShapeLeft, char
     tempCar->headShapeRight = headShapeRight;
     tempCar->bodyShape = bodyShape;
     tempCar->carType = carType;
+    tempCar->isFriendly = isFriendly;
     tempCar->exists = exists;
     return tempCar;
 }
@@ -122,7 +130,7 @@ LANE *InitLanes(WIN *map)
     LANE *lanes = (LANE *)malloc(sizeof(LANE) * (map->height - 4));
     for (int i = 0; i <= map->height - 4; i++)
     {
-        lanes[i].car = InitCar(RA(2, 3), RA(MIN_CAR_LENGTH, MAX_CAR_LENGTH), RA(3, map->width - 3), RA(0, 1), '<', '>', 'X', RA(0, 2), RA(0, 2), RA(0, 2));
+        lanes[i].car = InitCar(RA(2, 3), RA(MIN_CAR_LENGTH, MAX_CAR_LENGTH), RA(3, map->width - 3), RA(0, 1), '<', '>', 'X', RA(0, 2), !RA(0, 3), RA(0, 2), RA(0, 2));
     }
     return lanes;
 }
@@ -197,9 +205,9 @@ void CleanWin(WIN *window)
     }
 }
 
-void UpdateTimer(TIMER *timer)
+void UpdateTimer(TIMER *timer,time_t startFrame,time_t endFrame)
 {
-    usleep(FRAME_TIME * 1000); // program sleeps FRAME_TIME[ms] between frames
+    usleep(FRAME_TIME * 1000-(startFrame-endFrame)); // program sleeps FRAME_TIME[ms] between frames
     timer->frame_no++;
     timer->time_elapsed += FRAME_TIME;
 }
@@ -233,6 +241,15 @@ void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
         player->frame = timer->frame_no;
     }
     flushinp();
+}
+
+bool CheckCarCollision(PLAYER *player, CAR *car, WIN *map)
+{
+    if (player->y > 1 && player->y < map->height - 2 && car->exists && player->x >= car->leftX && player->x <= car->rightX)
+    {
+        return true;
+    }
+    return false;
 }
 
 bool MoveBouncingCar(CAR *car, WIN *map)
@@ -308,7 +325,7 @@ bool MoveDissapearingCar(CAR *car, WIN *map)
     return FALSE;
 }
 
-void MoveCar(CAR *car, TIMER *timer, WIN *map, int y)
+void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player,int y)
 {
     if (timer->frame_no - car->frame >= car->speed)
     {
@@ -316,11 +333,19 @@ void MoveCar(CAR *car, TIMER *timer, WIN *map, int y)
         {
             if (car->dir == LEFT)
             {
+                if(CheckCarCollision(player,car,map) && car->isFriendly && player->x >player->minX && player->y == y)
+                {
+                 player->x-=1;   
+                }
                 car->leftX -= 1;
                 car->rightX -= 1;
             }
             else
             {
+                if(CheckCarCollision(player,car,map) && car->isFriendly&& player->x <player->maxX && player->y == y)
+                {
+                 player->x+=1;   
+                }
                 car->leftX += 1;
                 car->rightX += 1;
             }
@@ -338,15 +363,6 @@ void Welcome(WINDOW *win)
     wrefresh(win);
 }
 
-bool CheckCarCollision(PLAYER *player, LANE *lanes, WIN *map, int laneY)
-{
-    if (player->y > 1 && player->y < map->height - 2 && lanes[laneY].car->exists && player->x >= lanes[laneY].car->leftX && player->x <= lanes[laneY].car->rightX)
-    {
-        return true;
-    }
-    return false;
-}
-
 void GameOver(WIN *status)
 {
     CleanWin(status);
@@ -359,9 +375,11 @@ void GameOver(WIN *status)
 
 int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes)
 {
+    time_t startFrame,endFrame;
     char ch;
-    while ((ch = wgetch(map->win)) != 'x' && !CheckCarCollision(player, lanes, map, player->y - 2))
+    while ((ch = wgetch(map->win)) != 'x' && (!CheckCarCollision(player, lanes[player->y-2].car, map)||lanes[player->y-2].car->isFriendly))
     {
+        startFrame = time(NULL);
         CleanWin(map);
 
         if (ch != ERR)
@@ -370,12 +388,13 @@ int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes)
         }
         for (int i = 0; i < MAP_HEIGHT - 4; i++)
         {
-            MoveCar(lanes[i].car, timer, map, i + 2);
+            MoveCar(lanes[i].car, timer, map, player, i+2);
             DrawCar(lanes[i].car, map, i + 2);
         }
         DrawPlayer(map->win, player);
         wrefresh(map->win);
-        UpdateTimer(timer);
+        endFrame =time(NULL);
+        UpdateTimer(timer,startFrame,endFrame);
         UpdateStatus(status, timer);
     };
 }

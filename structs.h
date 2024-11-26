@@ -53,15 +53,16 @@ typedef struct
     int frame;
     int maxX, maxY, minX, minY;
     int height, width;
+    bool travels; //does player want to travel on a friendly car
     char shape;
 } PLAYER;
 
 typedef struct {
 	int frame_no;
-    int maxPoints;
     int points;
     int gameTime;
-    float time_elapsed;
+    float timeElapsed;
+    float timeLeft;
 } TIMER;
 
 #endif

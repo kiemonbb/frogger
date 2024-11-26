@@ -58,6 +58,9 @@ typedef struct
 
 typedef struct {
 	int frame_no;
+    int maxPoints;
+    int points;
+    int gameTime;
     float time_elapsed;
 } TIMER;
 

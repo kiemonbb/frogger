@@ -467,6 +467,21 @@ int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes, c
     };
 }
 
+void FreeMemory(WIN*map,WIN*status,TIMER*timer,PLAYER*player,LANE*lanes)
+{
+    free(timer);
+    free(player);
+    delwin(map->win);
+    delwin(status->win);
+    free(map);
+    free(status);
+    for (int x = 0; x < MAP_HEIGHT - 4; x++)
+    {
+        free(lanes[x].car);
+    }
+    free(lanes);
+}
+
 int main()
 {
     // initializing stuff
@@ -495,20 +510,10 @@ int main()
         GameOver(status,timer);
     }
 
-    //freeing allocated memory
     flushinp();
-    free(timer);
-    free(player);
-    delwin(map->win);
-    delwin(status->win);
-    free(map);
-    free(status);
-    for (int x = 0; x < MAP_HEIGHT - 4; x++)
-    {
-        free(lanes[x].car);
-    }
-    free(lanes);
-    endwin();
+    //freeing allocated memory
+    FreeMemory(map,status,timer,player,lanes);
 
+    endwin();
     return 0;
 }

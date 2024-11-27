@@ -1,5 +1,6 @@
 #include <ncurses.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include "structs.h"
@@ -13,7 +14,6 @@
 #define MAP_WIDTH 30
 
 #define STATUS_HEIGHT 5
-#define STATUS_Y MAP_HEIGHT
 
 #define FRAME_TIME 16.66666 // time interval between frames in ms
 #define FBM_PLAYER 12       // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
@@ -25,9 +25,9 @@
 #define END_POINTS  200   //points gained by reaching the end of map and making a single step forward
 #define STEP_POINTS 5
 
-#define SLOW_CAR 8
-#define FAST_CAR 5
-#define SUPERFAST_CAR 2
+#define SLOW_CAR 9
+#define FAST_CAR 6
+#define SUPERFAST_CAR 3
 
 #define RA(min, max) ((min) + rand() % ((max) - (min) + 1))
 
@@ -65,7 +65,7 @@ WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x, char *title
     tempWin->y = y;
     tempWin->win = subwin(parent, height, width, y, x);
     box(tempWin->win, 0, 0);
-    mvwprintw(tempWin->win, 0, 3, title);
+    mvwprintw(tempWin->win, 0, 1, title);
     return tempWin;
 }
 
@@ -131,23 +131,23 @@ CAR *InitCar(int length, int headX, DIR dir, char headShapeLeft, char headShapeR
     return tempCar;
 }
 
-LANE *InitLanes(WIN *map)
+LANE *InitLanes(WIN *map,int *settings)
 {
     LANE *lanes = (LANE *)malloc(sizeof(LANE) * (map->height - 4));
     for (int i = 0; i < map->height - 4; i++)
     {
-        lanes[i].car = InitCar(RA(MIN_CAR_LENGTH, MAX_CAR_LENGTH), RA(3, map->width - 3), RA(0, 1), '<', '>', 'X', RA(0,2), !RA(0, 3), RA(0, 2), RA(0, 2));
+        lanes[i].car = InitCar(RA(settings[3], settings[4]), RA(3, map->width - 3), RA(0, 1), '<', '>', 'X', RA(0,2), !RA(0, 3), RA(0, 2), RA(0, 2));
     }
     return lanes;
 }
 
-TIMER *InitTimer()
+TIMER *InitTimer(int gameTime)
 {
     TIMER *timer = (TIMER *)malloc(sizeof(TIMER));
     timer->frame_no = 1;
     timer->timeElapsed = 0;
     timer->points = 0;
-    timer->gameTime = GAME_TIME;
+    timer->gameTime = gameTime;
     return timer;
 }
 
@@ -332,7 +332,7 @@ bool MoveWrappingCar(CAR *car, WIN *map)
         }
         else if (car->dir == RIGHT && car->leftX == map->width - 1)
         {
-            car->leftX = -car->length;
+            car->leftX = -car->length+2;
             car->rightX = 1;
             return TRUE;
         }
@@ -340,13 +340,13 @@ bool MoveWrappingCar(CAR *car, WIN *map)
     return FALSE;
 }
 
-bool MoveDissapearingCar(CAR *car, WIN *map)
+bool MoveDissapearingCar(CAR *car, WIN *map,int *settings)
 {
     if (car->carType == DISAPPEARING)
     {
         if ((car->dir == LEFT && car->rightX == 0) || (car->dir == RIGHT && car->leftX == map->width - 1))
         {
-            car->length = RA(MIN_CAR_LENGTH, MAX_CAR_LENGTH);
+            car->length = RA(settings[3], settings[4]);
             switch (car->speed = RA(0, 2))
             {
             case 0:
@@ -385,11 +385,11 @@ bool MoveDissapearingCar(CAR *car, WIN *map)
     return FALSE;
 }
 
-void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y)
+void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, int*settings)
 {
     if (timer->frame_no - car->frame >= car->speed)
     {
-        if (!(MoveBouncingCar(car, map)) && !MoveWrappingCar(car, map) && !MoveDissapearingCar(car, map))
+        if (!(MoveBouncingCar(car, map)) && !MoveWrappingCar(car, map) && !MoveDissapearingCar(car, map,settings))
         {
             if (car->dir == LEFT)
             {
@@ -433,7 +433,7 @@ void ResetPlayerPosition(PLAYER *player, WIN *map, TIMER *timer,LANE*lanes)
 //------------------- GAME BODY  -----------------
 //------------------------------------------------
 
-int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes, char *ch)
+int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes, char *ch, int*settings)
 {
     clock_t startFrame, endFrame;
     while ((*ch = wgetch(map->win)) != 'x')
@@ -448,9 +448,9 @@ int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes, c
         {
             PlayerMovement(map->win, player, *ch, timer);
         }
-        for (int i = 0; i < MAP_HEIGHT - 4; i++)
+        for (int i = 0; i < map->height - 4; i++)
         {
-            MoveCar(lanes[i].car, timer, map, player, i + 2);
+            MoveCar(lanes[i].car, timer, map, player, i + 2,settings);
             DrawCar(lanes[i].car, map, i + 2);
         }
         ResetPlayerPosition(player,map,timer,lanes);
@@ -482,25 +482,40 @@ void FreeMemory(WIN*map,WIN*status,TIMER*timer,PLAYER*player,LANE*lanes)
     free(lanes);
 }
 
+void FileHandling(int*settings)
+{
+    FILE*gameSettings;
+    gameSettings = fopen("settings.txt","r");
+    if(gameSettings!=NULL)
+    {
+        fscanf(gameSettings,"%d %d %d %d %d",&settings[0],&settings[1],&settings[2],&settings[3],&settings[4]);
+    }
+    fclose(gameSettings);
+}
+
 int main()
 {
-    // initializing stuff
     WINDOW *stdwin = InitGame();
     Welcome(stdwin);
 
-    WIN *map = InitWindow(stdwin, MAP_WIDTH, MAP_HEIGHT, 0, 0, "Oktawian Bieszke s203557");
+    int settings[5] = {MAP_WIDTH,MAP_HEIGHT,GAME_TIME,MIN_CAR_LENGTH,MAX_CAR_LENGTH};
+    FileHandling(settings);
+    
+    WIN *map = InitWindow(stdwin, settings[0], settings[1], 0, 0, "frogger");        
     nodelay(map->win, true);
+    // initializing stuff
+    WIN *status = InitWindow(stdwin, map->width, STATUS_HEIGHT, map->height, 0, "status");
 
-    WIN *status = InitWindow(stdwin, map->width, 5, map->height, 0, "status");
-
+    mvwprintw(stdwin, map->height+status->height, 1, "Oktawian Bieszke s203557");
+    wrefresh(stdwin);
     PLAYER *player = InitPlayer(map->height - 2, map->width / 2, 1, map->height - 2, 1, map->width - 2, 'O');
 
-    TIMER *timer = InitTimer();
+    TIMER *timer = InitTimer(settings[2]);
 
     // basic gameloop
-    LANE *lanes = InitLanes(map);
+    LANE *lanes = InitLanes(map,settings);
     char ch;
-    MainLoop(player, map, status, timer, lanes, &ch);
+    MainLoop(player, map, status, timer, lanes, &ch,settings);
     if (ch == 'x')
     {
         Quit(status);

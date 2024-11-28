@@ -4,30 +4,30 @@
 
 typedef enum
 {
-    LEFT = 0,
-    RIGHT = 1,
+    LEFT,
+    RIGHT,
 } DIR;
 
 typedef enum
 {
     RIVER,
     TWO_ROCKS,
-    PONDS,
     BIG_ROCK,
+    PONDS,
 } OBSTACLE_TYPE;
 
 typedef enum
 {
-    SUPERFAST = 0,
-    FAST = 1,
-    SLOW = 2,
+    SUPERFAST,
+    FAST,
+    SLOW,
 } SPEED;
 
 typedef enum
 {
-    BOUNCING = 0,
-    WRAPPING = 1,
-    DISAPPEARING = 2,
+    BOUNCING,
+    WRAPPING,
+    DISAPPEARING,
 } CARTYPE;
 typedef struct
 {
@@ -54,8 +54,10 @@ typedef struct
 
 typedef struct
 {
+    OBSTACLE_TYPE type;
     int color;
     int *positions;
+    bool exists;
 } OBSTACLE;
 
 typedef struct
@@ -66,7 +68,7 @@ typedef struct
 
 typedef struct
 {
-    int x, y;
+    int x, y, prevX, prevY;
     int color;
     int frame;
     int maxX, maxY, minX, minY;

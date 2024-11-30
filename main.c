@@ -13,7 +13,7 @@
 #define MAP_HEIGHT 20
 #define MAP_WIDTH 30
 
-#define STATUS_HEIGHT 5
+#define STATUS_HEIGHT 4
 
 #define FRAME_TIME 16.66666 // time interval between frames in ms
 #define FBM_PLAYER 12       // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
@@ -186,7 +186,7 @@ LANE *InitLanes(WIN *map, int *settings)
     return lanes;
 }
 
-TIMER *InitTimer(int gameTime)
+TIMER *InitTimer(float gameTime)
 {
     TIMER *timer = (TIMER *)malloc(sizeof(TIMER));
     timer->frame_no = 1;
@@ -475,12 +475,13 @@ void CleanWin(WIN *window)
     }
 }
 
-void Welcome(WINDOW *win)
+void Welcome(WINDOW *win,int highscore)
 {
     mvwprintw(win, 1, 2, "   Use 'wasd' to move around    ");
     mvwprintw(win, 2, 2, "  Press 'x' to close the game   ");
     mvwprintw(win, 3, 2, "Press 'r' to drive on green cars");
     mvwprintw(win, 5, 2, "Press any key to start the game!");
+    mvwprintw(win, 7, 2, "    CURRENT HIGHSCORE: %d       ",highscore);
     wgetch(win);
     wclear(win);
     wrefresh(win);
@@ -490,7 +491,8 @@ void GameOver(WIN *status, TIMER *timer)
 {
     CleanWin(status);
     wattron(status->win, A_BOLD);
-    mvwprintw(status->win, status->height / 2, status->width / 2 - 13, "GAME OVER  Your Score: %d", timer->points);
+    mvwprintw(status->win, 1, status->width/2-4, "GAME OVER", timer->points);
+    mvwprintw(status->win, 2, status->width / 2 - 7, "Your Score: %d", timer->points);
     wattroff(status->win, A_BOLD);
     wrefresh(status->win);
     sleep(3);
@@ -500,7 +502,8 @@ void Quit(WIN *status)
 {
     CleanWin(status);
     wattron(status->win, A_BOLD);
-    mvwprintw(status->win, status->height / 2, status->width / 2 - 4, "YOU QUIT");
+    mvwprintw(status->win, 1, status->width / 2 - 4, "YOU QUIT");
+    mvwprintw(status->win, 2, status->width / 2 - 2, "BYE!");
     wattroff(status->win, A_BOLD);
     wrefresh(status->win);
     sleep(3);
@@ -509,7 +512,8 @@ void Quit(WIN *status)
 void UpdateStatus(WIN *status, TIMER *timer)
 {
     CleanWin(status);
-    mvwprintw(status->win, status->height / 2, status->width / 2 - 13, "Time: %.2fs   Points: %d", timer->timeLeft, timer->points);
+    mvwprintw(status->win, 1,status->width/2-6,"Time: %.2fs",timer->timeLeft);
+    mvwprintw(status->win, 2,status->width/2 - 5,"Score: %d",timer->points);
     wrefresh(status->win);
 }
 
@@ -533,10 +537,6 @@ void FreeMemory(WIN *map, WIN *status, TIMER *timer, PLAYER *player, LANE *lanes
     delwin(status->win);
     free(map);
     free(status);
-    for (int x = 0; x < MAP_HEIGHT - 4; x++)
-    {
-        free(lanes[x].car);
-    }
     free(lanes);
 }
 
@@ -551,6 +551,31 @@ void FileHandling(int *settings)
     fclose(gameSettings);
 }
 
+int HighScoreGet()
+{
+    FILE*top;
+    top = fopen("top.txt","r");
+    int highscore = 0;
+    if(top!=NULL)
+    {
+        fscanf(top,"%d",&highscore);
+        fclose(top);
+    }
+
+    return highscore;
+    
+}
+
+void HighScoreSet(int highscore,int points)
+{
+    if (points>highscore)
+    {
+        FILE*top;
+        top=fopen("top.txt","w");
+        fprintf(top,"%d",points);
+        fclose(top);
+    }
+} 
 //------------------------------------------------
 //------------------- GAME BODY  -----------------
 //------------------------------------------------
@@ -592,7 +617,8 @@ int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes, c
 int main()
 {
     WINDOW *stdwin = InitGame();
-    Welcome(stdwin);
+    int highscore = HighScoreGet();
+    Welcome(stdwin,highscore);
 
     int settings[5] = {MAP_WIDTH, MAP_HEIGHT, GAME_TIME, MIN_CAR_LENGTH, MAX_CAR_LENGTH};
     FileHandling(settings);
@@ -620,6 +646,7 @@ int main()
     {
         GameOver(status, timer);
     }
+    HighScoreSet(highscore,timer->points);
 
     flushinp();
     // freeing allocated memory

@@ -72,7 +72,6 @@ typedef struct
     int color;
     int frame;
     int maxX, maxY, minX, minY;
-    int height, width;
     bool travels; // does player want to travel on a friendly car
     char shape;
 } PLAYER;

@@ -43,6 +43,7 @@ typedef struct
     int rightX;
     int frame;
     int speed;
+    bool stops;
     DIR dir;
     char headShapeLeft;
     char headShapeRight;

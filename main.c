@@ -93,10 +93,12 @@ CAR *InitCar(int length, int headX, DIR dir, char headShapeLeft, char headShapeR
     if (isFriendly)
     {
         tempCar->color = GREEN_COLOR;
+        tempCar->stops = FALSE;
     }
     else
     {
         tempCar->color = RED_COLOR;
+        tempCar->stops = !RA(0,3);
     }
     tempCar->length = length;
     if (dir == RIGHT)
@@ -355,7 +357,7 @@ bool MoveWrappingCar(CAR *car, WIN *map)
     return FALSE;
 }
 
-bool MoveDissapearingCar(CAR *car, WIN *map, int *settings)
+bool MoveDisapearingCar(CAR *car, WIN *map, int *settings)
 {
     if (car->carType == DISAPPEARING)
     {
@@ -378,10 +380,12 @@ bool MoveDissapearingCar(CAR *car, WIN *map, int *settings)
             if (car->isFriendly = !RA(0, 3))
             {
                 car->color = GREEN_COLOR;
+                car->stops = FALSE;
             }
             else
             {
                 car->color = RED_COLOR;
+                car->stops = !RA(0,3);
             }
 
             if (car->dir = RA(0, 1))
@@ -400,11 +404,20 @@ bool MoveDissapearingCar(CAR *car, WIN *map, int *settings)
     return FALSE;
 }
 
+bool CanCarMove(CAR*car,PLAYER*player, int y)
+{
+    if(car->stops == TRUE &&player->x >car->leftX-5 && player->x<car->rightX+5 && player->y == y)
+    {
+        return FALSE;
+    }
+    return TRUE;
+}
+
 void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, int *settings)
 {
     if (timer->frame_no - car->frame >= car->speed)
     {
-        if (!(MoveBouncingCar(car, map)) && !MoveWrappingCar(car, map) && !MoveDissapearingCar(car, map, settings))
+        if (!(MoveBouncingCar(car, map)) && !MoveWrappingCar(car, map) && !MoveDisapearingCar(car, map, settings) && CanCarMove(car,player,y))
         {
             if (car->dir == LEFT)
             {

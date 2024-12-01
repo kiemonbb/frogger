@@ -7,8 +7,9 @@
 #define GREEN_COLOR 1
 #define RED_COLOR 2
 #define BLUE_COLOR 3
-#define BLACK_COLOR 4
+#define YELLOW_COLOR 4
 #define WHITE_COLOR 5
+#define MAGENTA_COLOR 7
 
 #define MAP_HEIGHT 20
 #define MAP_WIDTH 30
@@ -17,6 +18,7 @@
 
 #define FRAME_TIME 16.66666 // time interval between frames in ms
 #define FBM_PLAYER 12       // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
+#define FBM_STORK 32
 #define GAME_TIME 30
 
 #define MIN_CAR_LENGTH 6
@@ -44,9 +46,10 @@ WINDOW *InitGame()
     start_color();
     init_pair(GREEN_COLOR, COLOR_WHITE, COLOR_GREEN);
     init_pair(RED_COLOR, COLOR_WHITE, COLOR_RED);
-    init_pair(BLUE_COLOR, COLOR_WHITE, COLOR_BLUE);
-    init_pair(BLACK_COLOR, COLOR_WHITE, COLOR_BLACK);
+    init_pair(YELLOW_COLOR,COLOR_WHITE,COLOR_YELLOW);
     init_pair(WHITE_COLOR, COLOR_BLACK, COLOR_WHITE);
+    init_pair(BLUE_COLOR,COLOR_WHITE,COLOR_BLUE);
+    init_pair(MAGENTA_COLOR,COLOR_WHITE,COLOR_MAGENTA);
 
     srand(time(NULL));
     cbreak();
@@ -87,18 +90,27 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     return tempPlayer;
 }
 
+STORK *InitStork(int x, int y, char shape)
+{
+    STORK *stork = (STORK *)malloc(sizeof(STORK));
+    stork->x = x;
+    stork->y = y;
+    stork->shape = shape;
+    stork->frame = 1;
+}
+
 CAR *InitCar(int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, CARTYPE carType, bool isFriendly, bool exists, SPEED speed)
 {
     CAR *tempCar = (CAR *)malloc(sizeof(CAR));
     if (isFriendly)
     {
-        tempCar->color = GREEN_COLOR;
+        tempCar->color = YELLOW_COLOR;
         tempCar->stops = FALSE;
     }
     else
     {
-        tempCar->color = RED_COLOR;
-        tempCar->stops = !RA(0,3);
+        tempCar->color = MAGENTA_COLOR;
+        tempCar->stops = !RA(0, 3);
     }
     tempCar->length = length;
     if (dir == RIGHT)
@@ -218,6 +230,13 @@ void DrawPlayer(WINDOW *win, PLAYER *player)
     wattroff(win, COLOR_PAIR(GREEN_COLOR) | A_BOLD);
 }
 
+void DrawStork(WINDOW*win, STORK*stork)
+{
+    wattron(win, COLOR_PAIR(RED_COLOR) | A_BOLD);
+    mvwaddch(win, stork->y, stork->x, stork->shape);
+    wattroff(win, COLOR_PAIR(RED_COLOR) | A_BOLD);
+}
+
 void DrawCar(CAR *car, WIN *map, int y)
 {
     if (car->exists)
@@ -262,13 +281,11 @@ void DrawObstacle(OBSTACLE *obstacle, WIN *map, int y)
     }
 }
 
-
-
 //------------------------------------------------
 //--------------- MOVEMENT FUNCTIONS -------------
 //------------------------------------------------
 
-void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
+void PlayerMovement(PLAYER *player, char ch, TIMER *timer)
 {
     if (timer->frame_no - player->frame >= FBM_PLAYER)
     {
@@ -277,7 +294,7 @@ void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
             player->prevY = player->y;
             player->prevX = player->x;
             player->y -= 1;
-            timer->points+=STEP_POINTS;
+            timer->points += STEP_POINTS;
         }
         else if (ch == 's' && player->y < player->maxY)
         {
@@ -301,6 +318,32 @@ void PlayerMovement(WINDOW *win, PLAYER *player, char ch, TIMER *timer)
     }
 }
 
+void StorkMovement(PLAYER*player,STORK*stork,TIMER*timer)
+{
+    if (timer->frame_no - stork->frame >= FBM_STORK)
+    {
+        if(stork->x-player->x>0)
+        {
+            stork->x-=1;
+        }
+        else if(stork->x-player->x<0)
+        {
+            stork->x+=1;
+        }
+        stork->frame = timer->frame_no;
+
+        if(stork->y-player->y>0)
+        {
+            stork->y-=1;
+        }
+        else if(stork->y-player->y<0)
+        {
+            stork->y+=1;
+        }
+        stork->frame = timer->frame_no;
+    }
+}
+
 bool CheckCarCollision(PLAYER *player, CAR *car, WIN *map)
 {
     if (player->y > 1 && player->y < map->height - 2 && car->exists && player->x >= car->leftX && player->x <= car->rightX)
@@ -312,7 +355,7 @@ bool CheckCarCollision(PLAYER *player, CAR *car, WIN *map)
 
 bool CheckObstacleCollision(PLAYER *player, OBSTACLE *obstacle, WIN *map, int type)
 {
-    if (player->y > 1 && player->y < map->height - 2 && obstacle->positions[player->x] == type  && obstacle->exists == TRUE)
+    if (player->y > 1 && player->y < map->height - 2 && obstacle->positions[player->x] == type && obstacle->exists == TRUE)
     {
         return TRUE;
     }
@@ -379,13 +422,13 @@ bool MoveDisapearingCar(CAR *car, WIN *map, int *settings)
 
             if (car->isFriendly = !RA(0, 3))
             {
-                car->color = GREEN_COLOR;
+                car->color = YELLOW_COLOR;
                 car->stops = FALSE;
             }
             else
             {
-                car->color = RED_COLOR;
-                car->stops = !RA(0,3);
+                car->color = MAGENTA_COLOR;
+                car->stops = !RA(0, 3);
             }
 
             if (car->dir = RA(0, 1))
@@ -404,9 +447,9 @@ bool MoveDisapearingCar(CAR *car, WIN *map, int *settings)
     return FALSE;
 }
 
-bool CanCarMove(CAR*car,PLAYER*player, int y)
+bool CanCarMove(CAR *car, PLAYER *player, int y)
 {
-    if(car->stops == TRUE &&player->x >car->leftX-5 && player->x<car->rightX+5 && player->y == y)
+    if (car->stops == TRUE && player->x > car->leftX - 5 && player->x < car->rightX + 5 && player->y == y)
     {
         return FALSE;
     }
@@ -417,7 +460,7 @@ void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, int *setti
 {
     if (timer->frame_no - car->frame >= car->speed)
     {
-        if (!(MoveBouncingCar(car, map)) && !MoveWrappingCar(car, map) && !MoveDisapearingCar(car, map, settings) && CanCarMove(car,player,y))
+        if (!(MoveBouncingCar(car, map)) && !MoveWrappingCar(car, map) && !MoveDisapearingCar(car, map, settings) && CanCarMove(car, player, y))
         {
             if (car->dir == LEFT)
             {
@@ -442,7 +485,22 @@ void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, int *setti
     }
 }
 
-bool ResetPlayerPosition(PLAYER *player, WIN *map, TIMER *timer, CAR*car,OBSTACLE*obstacle)
+void ResetPlayerAndStork(PLAYER*player,STORK*stork,WIN*map,TIMER*timer)
+{
+    if(player->x == stork->x && player->y == stork->y)
+    {
+        if(player->y <player->prevY)
+        {
+            timer->points-=STEP_POINTS;
+        }
+        player->x = map->width/2;
+        player->y = map->height-2;
+        stork->x = map->width-2;
+        stork->y = 1;
+    }
+}
+
+bool ResetPlayerPosition(PLAYER *player, WIN *map, TIMER *timer, CAR *car, OBSTACLE *obstacle)
 {
     if (player->y == 1)
     {
@@ -451,21 +509,21 @@ bool ResetPlayerPosition(PLAYER *player, WIN *map, TIMER *timer, CAR*car,OBSTACL
         timer->points += END_POINTS;
         return TRUE;
     }
-    else if (!(!CheckCarCollision(player, car, map) || car->isFriendly) || CheckObstacleCollision(player,obstacle,map, 1))
+    else if (!(!CheckCarCollision(player, car, map) || car->isFriendly) || CheckObstacleCollision(player, obstacle, map, 1))
     {
-        if(player->y<player->prevY)
+        if (player->y < player->prevY)
         {
-            timer->points-=STEP_POINTS;
+            timer->points -= STEP_POINTS;
         }
         player->y = map->height - 2;
         player->x = map->width / 2;
         return TRUE;
     }
-    else if(CheckObstacleCollision(player,obstacle,map,2))
+    else if (CheckObstacleCollision(player, obstacle, map, 2))
     {
-        if(player->y<player->prevY)
+        if (player->y < player->prevY)
         {
-            timer->points-=STEP_POINTS;
+            timer->points -= STEP_POINTS;
         }
         player->y = player->prevY;
         player->x = player->prevX;
@@ -488,13 +546,13 @@ void CleanWin(WIN *window)
     }
 }
 
-void Welcome(WINDOW *win,int highscore)
+void Welcome(WINDOW *win, int highscore)
 {
     mvwprintw(win, 1, 2, "   Use 'wasd' to move around    ");
     mvwprintw(win, 2, 2, "  Press 'x' to close the game   ");
     mvwprintw(win, 3, 2, "Press 'r' to drive on green cars");
     mvwprintw(win, 5, 2, "Press any key to start the game!");
-    mvwprintw(win, 7, 2, "    CURRENT HIGHSCORE: %d       ",highscore);
+    mvwprintw(win, 7, 2, "    CURRENT HIGHSCORE: %d       ", highscore);
     wgetch(win);
     wclear(win);
     wrefresh(win);
@@ -504,7 +562,7 @@ void GameOver(WIN *status, TIMER *timer)
 {
     CleanWin(status);
     wattron(status->win, A_BOLD);
-    mvwprintw(status->win, 1, status->width/2-4, "GAME OVER", timer->points);
+    mvwprintw(status->win, 1, status->width / 2 - 4, "GAME OVER", timer->points);
     mvwprintw(status->win, 2, status->width / 2 - 7, "Your Score: %d", timer->points);
     wattroff(status->win, A_BOLD);
     wrefresh(status->win);
@@ -525,8 +583,8 @@ void Quit(WIN *status)
 void UpdateStatus(WIN *status, TIMER *timer)
 {
     CleanWin(status);
-    mvwprintw(status->win, 1,status->width/2-6,"Time: %.2fs",timer->timeLeft);
-    mvwprintw(status->win, 2,status->width/2 - 5,"Score: %d",timer->points);
+    mvwprintw(status->win, 1, status->width / 2 - 6, "Time: %.2fs", timer->timeLeft);
+    mvwprintw(status->win, 2, status->width / 2 - 5, "Score: %d", timer->points);
     wrefresh(status->win);
 }
 
@@ -566,34 +624,33 @@ void FileHandling(int *settings)
 
 int HighScoreGet()
 {
-    FILE*top;
-    top = fopen("top.txt","r");
+    FILE *top;
+    top = fopen("top.txt", "r");
     int highscore = 0;
-    if(top!=NULL)
+    if (top != NULL)
     {
-        fscanf(top,"%d",&highscore);
+        fscanf(top, "%d", &highscore);
         fclose(top);
     }
 
     return highscore;
-    
 }
 
-void HighScoreSet(int highscore,int points)
+void HighScoreSet(int highscore, int points)
 {
-    if (points>highscore)
+    if (points > highscore)
     {
-        FILE*top;
-        top=fopen("top.txt","w");
-        fprintf(top,"%d",points);
+        FILE *top;
+        top = fopen("top.txt", "w");
+        fprintf(top, "%d", points);
         fclose(top);
     }
-} 
+}
 //------------------------------------------------
 //------------------- GAME BODY  -----------------
 //------------------------------------------------
 
-int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes, char *ch, int *settings)
+int MainLoop(PLAYER *player, STORK*stork, WIN *map, WIN *status, TIMER *timer, LANE *lanes, char *ch, int *settings)
 {
     clock_t startFrame, endFrame;
     while ((*ch = wgetch(map->win)) != 'x')
@@ -612,10 +669,13 @@ int MainLoop(PLAYER *player, WIN *map, WIN *status, TIMER *timer, LANE *lanes, c
         }
         else if (*ch != ERR)
         {
-            PlayerMovement(map->win, player, *ch, timer);
-        } 
-        ResetPlayerPosition(player, map, timer, lanes[player->y-2].car,lanes[player->y-2].obstacle);
+            PlayerMovement (player, *ch, timer);
+        }
+        StorkMovement(player,stork,timer);
+        ResetPlayerAndStork(player,stork,map,timer);
+        ResetPlayerPosition(player, map, timer, lanes[player->y - 2].car, lanes[player->y - 2].obstacle);
         DrawPlayer(map->win, player);
+        DrawStork(map->win,stork);
         wrefresh(map->win);
         endFrame = time(NULL);
         UpdateStatus(status, timer);
@@ -631,7 +691,7 @@ int main()
 {
     WINDOW *stdwin = InitGame();
     int highscore = HighScoreGet();
-    Welcome(stdwin,highscore);
+    Welcome(stdwin, highscore);
 
     int settings[5] = {MAP_WIDTH, MAP_HEIGHT, GAME_TIME, MIN_CAR_LENGTH, MAX_CAR_LENGTH};
     FileHandling(settings);
@@ -644,13 +704,13 @@ int main()
     mvwprintw(stdwin, map->height + status->height, 1, "Oktawian Bieszke s203557");
     wrefresh(stdwin);
     PLAYER *player = InitPlayer(map->height - 2, map->width / 2, 1, map->height - 2, 1, map->width - 2, 'O');
-
+    STORK*stork = InitStork(map->width-2,1,'X');
     TIMER *timer = InitTimer(settings[2]);
 
     // basic gameloop
     LANE *lanes = InitLanes(map, settings);
     char ch;
-    MainLoop(player, map, status, timer, lanes, &ch, settings);
+    MainLoop(player,stork, map, status, timer, lanes, &ch, settings);
     if (ch == 'x')
     {
         Quit(status);
@@ -659,7 +719,7 @@ int main()
     {
         GameOver(status, timer);
     }
-    HighScoreSet(highscore,timer->points);
+    HighScoreSet(highscore, timer->points);
 
     flushinp();
     // freeing allocated memory

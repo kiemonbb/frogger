@@ -79,6 +79,13 @@ typedef struct
 
 typedef struct
 {
+    int x,y;
+    int color;
+    int frame;
+    char shape;
+}STORK;
+typedef struct
+{
     int frame_no;
     int points;
     int gameTime;

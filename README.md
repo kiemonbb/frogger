@@ -8,14 +8,24 @@ This Project is a simple terminal game, based on the arcade game "Frogger". It w
 ## Setup
 To run this game you'll need ncurses library installed on your system.
 * Ubuntu
+```
 $ sudo apt install libncurses5-dev libncursesw5-dev
+```
 * Fedora
+```
 $ sudo dnf ncurses-devel
+```
 * Arch
+```
 $ pacman -S ncurses
+```
 
 ## Running the game
 To play the game you have to compile the project by running the following command:
+```
 $ make
+```
 Then to run the program, do:
+```
 $ ./frogger
+```

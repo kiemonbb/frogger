@@ -90,7 +90,6 @@ typedef struct
     int frame_no;
     int points;
     int gameTime;
-    float timeElapsed;
     float timeLeft;
 } TIMER;
 

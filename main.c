@@ -208,7 +208,6 @@ TIMER *InitTimer(float gameTime)
 {
     TIMER *timer = (TIMER *)malloc(sizeof(TIMER));
     timer->frame_no = 1;
-    timer->timeElapsed = 0;
     timer->points = 0;
     timer->gameTime = gameTime;
     return timer;
@@ -634,7 +633,7 @@ void UpdateLevelStatus(WIN *status, TIMER *timer)
 
 bool UpdateTimer(TIMER *timer, clock_t startFrame, clock_t endFrame)
 {
-    usleep((FRAME_TIME - (startFrame - endFrame)) * 1000); // program sleeps FRAME_TIME[ms] - time it takes to generate a single frame, between frames
+    usleep((FRAME_TIME - (endFrame - startFrame)/CLOCKS_PER_SEC/1000)*1000); // program sleeps FRAME_TIME[ms] - time it takes to generate a single frame, between frames
     timer->frame_no++;
     timer->timeLeft = timer->gameTime - FRAME_TIME * timer->frame_no / 1000; // in seconds
     if (timer->timeLeft <= 0)
@@ -800,7 +799,7 @@ int MainLoop(PLAYER *player, STORK *stork, WIN *map, WIN *status, TIMER *timer, 
     clock_t startFrame, endFrame;
     while ((*ch = wgetch(map->win)) != 'x')
     {
-        startFrame = time(NULL);
+        startFrame = clock();
         CleanWin(map);
         for (int i = 0; i < map->height - 4; i++)
         {
@@ -822,7 +821,7 @@ int MainLoop(PLAYER *player, STORK *stork, WIN *map, WIN *status, TIMER *timer, 
         DrawPlayer(map->win, player);
         DrawStork(map->win, stork);
         wrefresh(map->win);
-        endFrame = time(NULL);
+        endFrame = clock();
         UpdateMainStatus(status, timer);
         // if time's up end game
         if (UpdateTimer(timer, startFrame, endFrame))

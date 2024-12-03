@@ -83,6 +83,7 @@ typedef struct
     int color;
     int frame;
     char shape;
+    bool exists;
 }STORK;
 typedef struct
 {

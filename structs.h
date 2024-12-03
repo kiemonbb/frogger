@@ -91,6 +91,7 @@ typedef struct
     int points;
     int gameTime;
     float timeLeft;
+    int end;
 } TIMER;
 
 #endif

@@ -39,7 +39,7 @@
 //------------------------------------------------
 
 // function initializng main window
-WINDOW *InitGame()
+WINDOW *InitGame(int seed)
 {
     WINDOW *stdwin;
     stdwin = initscr();
@@ -47,12 +47,12 @@ WINDOW *InitGame()
     start_color();
     init_pair(GREEN_COLOR, COLOR_WHITE, COLOR_GREEN);
     init_pair(RED_COLOR, COLOR_WHITE, COLOR_RED);
-    init_pair(YELLOW_COLOR,COLOR_WHITE,COLOR_YELLOW);
+    init_pair(YELLOW_COLOR, COLOR_WHITE, COLOR_YELLOW);
     init_pair(WHITE_COLOR, COLOR_BLACK, COLOR_WHITE);
-    init_pair(BLUE_COLOR,COLOR_WHITE,COLOR_BLUE);
-    init_pair(MAGENTA_COLOR,COLOR_WHITE,COLOR_MAGENTA);
+    init_pair(BLUE_COLOR, COLOR_WHITE, COLOR_BLUE);
+    init_pair(MAGENTA_COLOR, COLOR_WHITE, COLOR_MAGENTA);
 
-    srand(time(NULL));
+    srand(seed);
     cbreak();
     curs_set(0);
     noecho();
@@ -68,6 +68,7 @@ WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x, char *title
     tempWin->y = y;
     tempWin->win = subwin(parent, height, width, y, x);
     box(tempWin->win, 0, 0);
+    nodelay(tempWin->win, true);
     mvwprintw(tempWin->win, 0, 1, title);
     return tempWin;
 }
@@ -91,7 +92,7 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
     return tempPlayer;
 }
 
-STORK *InitStork(int x, int y, char shape,bool exists)
+STORK *InitStork(int x, int y, char shape, bool exists)
 {
     STORK *stork = (STORK *)malloc(sizeof(STORK));
     stork->x = x;
@@ -233,9 +234,10 @@ void DrawPlayer(WINDOW *win, PLAYER *player)
     wattroff(win, COLOR_PAIR(GREEN_COLOR) | A_BOLD);
 }
 
-void DrawStork(WINDOW*win, STORK*stork)
+void DrawStork(WINDOW *win, STORK *stork)
 {
-    if(stork->exists){
+    if (stork->exists)
+    {
         wattron(win, COLOR_PAIR(MAGENTA_COLOR) | A_BOLD);
         mvwaddch(win, stork->y, stork->x, stork->shape);
         wattroff(win, COLOR_PAIR(MAGENTA_COLOR) | A_BOLD);
@@ -323,27 +325,27 @@ void PlayerMovement(PLAYER *player, char ch, TIMER *timer)
     }
 }
 
-void StorkMovement(PLAYER*player,STORK*stork,TIMER*timer)
+void StorkMovement(PLAYER *player, STORK *stork, TIMER *timer)
 {
-    if (timer->frame_no - stork->frame >= FBM_STORK &&stork->exists)
+    if (timer->frame_no - stork->frame >= FBM_STORK && stork->exists)
     {
-        if(stork->x-player->x>0)
+        if (stork->x - player->x > 0)
         {
-            stork->x-=1;
+            stork->x -= 1;
         }
-        else if(stork->x-player->x<0)
+        else if (stork->x - player->x < 0)
         {
-            stork->x+=1;
+            stork->x += 1;
         }
         stork->frame = timer->frame_no;
 
-        if(stork->y-player->y>0)
+        if (stork->y - player->y > 0)
         {
-            stork->y-=1;
+            stork->y -= 1;
         }
-        else if(stork->y-player->y<0)
+        else if (stork->y - player->y < 0)
         {
-            stork->y+=1;
+            stork->y += 1;
         }
         stork->frame = timer->frame_no;
     }
@@ -385,18 +387,36 @@ bool MoveBouncingCar(CAR *car, WIN *map)
     return FALSE;
 }
 
+void ChangeCarSpeed(CAR *car)
+{
+    switch (car->speed = RA(0, 2))
+    {
+    case 0:
+        car->speed = SUPERFAST_CAR;
+        break;
+    case 1:
+        car->speed = FAST_CAR;
+        break;
+    case 2:
+        car->speed = SLOW_CAR;
+        break;
+    }
+}
+
 bool MoveWrappingCar(CAR *car, WIN *map)
 {
     if (car->carType == WRAPPING)
     {
         if (car->dir == LEFT && car->rightX == 0)
         {
+            ChangeCarSpeed(car);
             car->leftX = map->width - 2;
             car->rightX = map->width - 2 + car->length - 1;
             return TRUE;
         }
         else if (car->dir == RIGHT && car->leftX == map->width - 1)
         {
+            ChangeCarSpeed(car);
             car->leftX = -car->length + 2;
             car->rightX = 1;
             return TRUE;
@@ -412,19 +432,7 @@ bool MoveDisapearingCar(CAR *car, WIN *map, int *settings)
         if ((car->dir == LEFT && car->rightX == 0) || (car->dir == RIGHT && car->leftX == map->width - 1))
         {
             car->length = RA(settings[3], settings[4]);
-            switch (car->speed = RA(0, 2))
-            {
-            case 0:
-                car->speed = SUPERFAST_CAR;
-                break;
-            case 1:
-                car->speed = FAST_CAR;
-                break;
-            case 2:
-                car->speed = SLOW_CAR;
-                break;
-            }
-
+            ChangeCarSpeed(car);
             if (car->isFriendly = !RA(0, 3))
             {
                 car->color = GREEN_COLOR;
@@ -490,22 +498,22 @@ void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, int *setti
     }
 }
 
-void ResetPlayerAndStork(PLAYER*player,STORK*stork,WIN*map,TIMER*timer)
+void ResetPlayerAndStork(PLAYER *player, STORK *stork, WIN *map, TIMER *timer)
 {
-    if(player->x == stork->x && player->y == stork->y)
+    if (player->x == stork->x && player->y == stork->y)
     {
-        if(player->y <player->prevY)
+        if (player->y < player->prevY)
         {
-            timer->points-=STEP_POINTS;
+            timer->points -= STEP_POINTS;
         }
-        player->x = map->width/2;
-        player->y = map->height-2;
-        stork->x = map->width-2;
+        player->x = map->width / 2;
+        player->y = map->height - 2;
+        stork->x = map->width - 2;
         stork->y = 1;
     }
 }
 
-bool ResetPlayerPosition(PLAYER *player, WIN *map, TIMER *timer, CAR *car, OBSTACLE *obstacle,bool isLevel)
+bool ResetPlayerPosition(PLAYER *player, WIN *map, TIMER *timer, CAR *car, OBSTACLE *obstacle, bool isLevel)
 {
     if (player->y == 1 && !isLevel)
     {
@@ -551,7 +559,7 @@ void CleanWin(WIN *window)
     }
 }
 
-void Welcome(WINDOW *win, int highscore,char*ch)
+void Welcome(WINDOW *win, int highscore, char *ch)
 {
     mvwprintw(win, 1, 2, "   Use 'wasd' to move around    ");
     mvwprintw(win, 2, 2, "  Press 'x' to close the game   ");
@@ -574,7 +582,7 @@ void YouWonLevel(WIN *status)
     sleep(3);
 }
 
-void YouLostLevel(WIN*status)
+void YouLostLevel(WIN *status)
 {
     CleanWin(status);
     wattron(status->win, A_BOLD);
@@ -582,7 +590,7 @@ void YouLostLevel(WIN*status)
     mvwprintw(status->win, 2, status->width / 2 - 1, ":(");
     wattroff(status->win, A_BOLD);
     wrefresh(status->win);
-    sleep(3); 
+    sleep(3);
 }
 
 void GameOver(WIN *status, TIMER *timer)
@@ -615,7 +623,7 @@ void UpdateMainStatus(WIN *status, TIMER *timer)
     wrefresh(status->win);
 }
 
-void UpdateLevelStatus(WIN*status,TIMER*timer)
+void UpdateLevelStatus(WIN *status, TIMER *timer)
 {
     CleanWin(status);
     mvwprintw(status->win, 1, status->width / 2 - 2, "Time:");
@@ -647,59 +655,59 @@ void FreeMemory(WIN *map, WIN *status, TIMER *timer, PLAYER *player, LANE *lanes
     free(lanes);
 }
 
-void GetSettings(int *settings, char*filename)
+void GetSettings(int *settings, char *filename)
 {
     FILE *gameSettings;
     gameSettings = fopen(filename, "r");
     if (gameSettings != NULL)
     {
-        if (filename =="settings.txt")
+        if (filename == "settings.txt")
         {
-        fscanf(gameSettings,"%d %d %d %d %d",&settings[0],&settings[1],&settings[2],&settings[3],&settings[4]);
+            fscanf(gameSettings, "%d %d %d %d %d", &settings[0], &settings[1], &settings[2], &settings[3], &settings[4]);
         }
         else
         {
-        fscanf(gameSettings,"%d %d %d",&settings[0],&settings[1],&settings[2]);
+            fscanf(gameSettings, "%d %d %d", &settings[0], &settings[1], &settings[2]);
         }
     }
     fclose(gameSettings);
 }
 
-void HandleSettings(int*settings,char*ch)
+void HandleSettings(int *settings, char *ch)
 {
-    if(*ch == '1')
+    if (*ch == '1')
     {
-        GetSettings(settings,"level1.txt");
+        GetSettings(settings, "level1.txt");
     }
-    else if(*ch=='2')
+    else if (*ch == '2')
     {
-        GetSettings(settings,"level2.txt");
+        GetSettings(settings, "level2.txt");
     }
-    else if(*ch == '3')
+    else if (*ch == '3')
     {
-        GetSettings(settings,"level3.txt");
+        GetSettings(settings, "level3.txt");
     }
     else
     {
-        GetSettings(settings,"settings.txt");
+        GetSettings(settings, "settings.txt");
     }
 }
 
-void LoadLevel(WIN*map,int*settings,LANE*lanes,char*file)
+void LoadLevel(WIN *map, int *settings, LANE *lanes, char *file)
 {
-    FILE*level = fopen(file,"r");
-    if(level!=NULL)
+    FILE *level = fopen(file, "r");
+    if (level != NULL)
     {
         int a;
-        fscanf(level,"%d %d %d",&a,&a,&a);
-        for(int i = 0;i<map->height-4; i++)
+        fscanf(level, "%d %d %d", &a, &a, &a);
+        for (int i = 0; i < map->height - 4; i++)
         {
-            lanes[i].car->exists=FALSE;
+            lanes[i].car->exists = FALSE;
             lanes[i].obstacle->exists = TRUE;
             lanes[i].obstacle->color = WHITE_COLOR;
-            for(int x = 1;x<=map->width-2;x++)
+            for (int x = 1; x <= map->width - 2; x++)
             {
-                fscanf(level,"%d",&lanes[i].obstacle->positions[x]);
+                fscanf(level, "%d", &lanes[i].obstacle->positions[x]);
             }
         }
     }
@@ -730,13 +738,33 @@ void HighScoreSet(int highscore, int points)
         fclose(top);
     }
 }
+void CheckLoadLevel(WIN *map, int *settings, LANE *lanes, char *ch)
+{
+    if (*ch == '1')
+    {
+        LoadLevel(map, settings, lanes, "level1.txt");
+    }
+    else if (*ch == '2')
+    {
+        LoadLevel(map, settings, lanes, "level2.txt");
+    }
+    else if (*ch == '3')
+    {
+        LoadLevel(map, settings, lanes, "level3.txt");
+    }
+}
 //------------------------------------------------
 //------------------- GAME BODY  -----------------
 //------------------------------------------------
 
-bool LevelLoop(PLAYER*player,LANE*lanes,WIN*map,WIN*status,TIMER*timer,char*ch,int*settings)
+void ReplayLoop(PLAYER *player, LANE *lanes, WIN *map, WIN *status, TIMER *timer, char *ch, int *settings)
 {
-    clock_t startFrame,endFrame;
+    FILE *replayFile = fopen("replay.txt", "r");
+}
+
+bool LevelLoop(PLAYER *player, LANE *lanes, WIN *map, WIN *status, TIMER *timer, char *ch, int *settings)
+{
+    clock_t startFrame, endFrame;
     while ((*ch = wgetch(map->win)) != 'x')
     {
         startFrame = time(NULL);
@@ -747,14 +775,14 @@ bool LevelLoop(PLAYER*player,LANE*lanes,WIN*map,WIN*status,TIMER*timer,char*ch,i
         }
         if (*ch != ERR)
         {
-            PlayerMovement (player, *ch, timer);
+            PlayerMovement(player, *ch, timer);
         }
         ResetPlayerPosition(player, map, timer, lanes[player->y - 2].car, lanes[player->y - 2].obstacle, TRUE);
         DrawPlayer(map->win, player);
         wrefresh(map->win);
         endFrame = time(NULL);
         UpdateLevelStatus(status, timer);
-        if(player->y==1)
+        if (player->y == 1)
         {
             return TRUE;
         }
@@ -765,10 +793,9 @@ bool LevelLoop(PLAYER*player,LANE*lanes,WIN*map,WIN*status,TIMER*timer,char*ch,i
         }
     };
     return FALSE;
-
 }
 
-int MainLoop(PLAYER *player, STORK*stork, WIN *map, WIN *status, TIMER *timer, LANE *lanes, char *ch, int *settings)
+int MainLoop(PLAYER *player, STORK *stork, WIN *map, WIN *status, TIMER *timer, LANE *lanes, char *ch, int *settings)
 {
     clock_t startFrame, endFrame;
     while ((*ch = wgetch(map->win)) != 'x')
@@ -787,13 +814,13 @@ int MainLoop(PLAYER *player, STORK*stork, WIN *map, WIN *status, TIMER *timer, L
         }
         else if (*ch != ERR)
         {
-            PlayerMovement (player, *ch, timer);
+            PlayerMovement(player, *ch, timer);
         }
-        StorkMovement(player,stork,timer);
-        ResetPlayerAndStork(player,stork,map,timer);
-        ResetPlayerPosition(player, map, timer, lanes[player->y - 2].car, lanes[player->y - 2].obstacle,FALSE);
+        StorkMovement(player, stork, timer);
+        ResetPlayerAndStork(player, stork, map, timer);
+        ResetPlayerPosition(player, map, timer, lanes[player->y - 2].car, lanes[player->y - 2].obstacle, FALSE);
         DrawPlayer(map->win, player);
-        DrawStork(map->win,stork);
+        DrawStork(map->win, stork);
         wrefresh(map->win);
         endFrame = time(NULL);
         UpdateMainStatus(status, timer);
@@ -805,45 +832,11 @@ int MainLoop(PLAYER *player, STORK*stork, WIN *map, WIN *status, TIMER *timer, L
     };
 }
 
-int main()
+void PlayGame(WIN *map, WIN *status, PLAYER *player, STORK *stork, TIMER *timer, LANE *lanes, int *settings, char *ch, int highscore)
 {
-    WINDOW *stdwin = InitGame();
-    int highscore = HighScoreGet();
-    char ch;
-    Welcome(stdwin, highscore,&ch);
-
-    int settings[5] = {MAP_WIDTH, MAP_HEIGHT, GAME_TIME, MIN_CAR_LENGTH, MAX_CAR_LENGTH};
-
-    HandleSettings(settings,&ch);
-
-    // initializing stuff
-    WIN *map = InitWindow(stdwin, settings[0], settings[1], 0, 0, "frogger");
-    nodelay(map->win, true);
-    WIN *status = InitWindow(stdwin, map->width, STATUS_HEIGHT, map->height, 0, "status");
-    mvwprintw(stdwin, map->height + status->height, 1, "Oktawian Bieszke s203557");
-
-    PLAYER *player = InitPlayer(map->height - 2, map->width / 2, 1, map->height - 2, 1, map->width - 2, 'O');
-    STORK*stork = InitStork(map->width-2,1,'4',TRUE);
-    TIMER *timer = InitTimer(settings[2]);
-
-    // basic gameloop
-    LANE *lanes = InitLanes(map, settings);
-    if(ch=='1')
+    if (*ch == '1' || *ch == '2' || *ch == '3')
     {
-        LoadLevel(map,settings,lanes,"level1.txt");
-    }
-    else if(ch=='2')
-    {
-        LoadLevel(map,settings,lanes,"level2.txt");
-    }
-    else if(ch =='3')
-    {
-        LoadLevel(map,settings,lanes,"level3.txt");
-    }
-    wrefresh(stdwin);
-    if(ch=='1'||ch=='2'||ch=='3')
-    {
-        if(LevelLoop(player,lanes,map,status,timer,&ch,settings))
+        if (LevelLoop(player, lanes, map, status, timer, ch, settings))
         {
             YouWonLevel(status);
         }
@@ -854,8 +847,8 @@ int main()
     }
     else
     {
-        MainLoop(player,stork, map, status, timer, lanes, &ch, settings);
-        if (ch == 'x')
+        MainLoop(player, stork, map, status, timer, lanes, ch, settings);
+        if (*ch == 'x')
         {
             Quit(status);
         }
@@ -865,7 +858,30 @@ int main()
         }
         HighScoreSet(highscore, timer->points);
     }
+}
 
+int main()
+{
+    WINDOW *stdwin = InitGame(time(NULL));
+    int highscore = HighScoreGet();
+    char ch;
+    Welcome(stdwin, highscore, &ch);
+
+    int settings[5] = {MAP_WIDTH, MAP_HEIGHT, GAME_TIME, MIN_CAR_LENGTH, MAX_CAR_LENGTH};
+
+    HandleSettings(settings, &ch);
+
+    // initializing stuff
+    WIN *map = InitWindow(stdwin, settings[0], settings[1], 0, 0, "frogger");
+    WIN *status = InitWindow(stdwin, map->width, STATUS_HEIGHT, map->height, 0, "status");
+    PLAYER *player = InitPlayer(map->height - 2, map->width / 2, 1, map->height - 2, 1, map->width - 2, 'O');
+    STORK *stork = InitStork(map->width - 2, 1, '4', TRUE);
+    TIMER *timer = InitTimer(settings[2]);
+    LANE *lanes = InitLanes(map, settings);
+
+    CheckLoadLevel(map, settings, lanes, &ch);
+    mvwprintw(stdwin, map->height + status->height, 1, "Oktawian Bieszke s203557");
+    PlayGame(map, status, player, stork, timer, lanes, settings, &ch, highscore);
     flushinp();
     // freeing allocated memory
     FreeMemory(map, status, timer, player, lanes);

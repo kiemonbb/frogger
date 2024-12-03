@@ -1,0 +1,1 @@
+gcc main.c -lncurses -o frogger 

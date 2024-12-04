@@ -1,6 +1,5 @@
 #include <ncurses.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include "structs.h"
@@ -8,31 +7,31 @@
 #define GREEN_COLOR 1
 #define RED_COLOR 2
 #define BLUE_COLOR 3
-#define YELLOW_COLOR 4
+#define MAGENTA_COLOR 4
 #define WHITE_COLOR 5
-#define MAGENTA_COLOR 7
 
-#define MAP_HEIGHT 20
+#define MAP_HEIGHT 20   //default game settings, when settings.txt file is empty or nonexistent
 #define MAP_WIDTH 30
+#define GAME_TIME 30
+#define MIN_CAR_LENGTH 6
+#define MAX_CAR_LENGTH 10
 
 #define STATUS_HEIGHT 4
 
 #define FRAME_TIME 16.66666 // time interval between frames in ms
-#define FBM_PLAYER 12       // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
-#define FBM_STORK 40
-#define GAME_TIME 30
 
-#define MIN_CAR_LENGTH 6
-#define MAX_CAR_LENGTH 10
+#define FBM_PLAYER 12       // frames between movement | FBM_PLAYER*FRAME_TIME => How often can player move
+#define FBM_STORK 40        
+#define SLOW_CAR 9          //every how many frames can player/car/stork move
+#define FAST_CAR 6
+#define SUPERFAST_CAR 3
 
 #define END_POINTS 200 // points gained by reaching the end of map and making a single step forward
 #define STEP_POINTS 5
 
-#define SLOW_CAR 9
-#define FAST_CAR 6
-#define SUPERFAST_CAR 3
+#define RA(min, max) ((min) + rand() % ((max) - (min) + 1))  //generating random number between min and max
 
-#define RA(min, max) ((min) + rand() % ((max) - (min) + 1))
+//used some ideas from demo game CATCH THE BALL written by MM
 
 //------------------------------------------------
 //----------------- INIT FUNCTIONS ---------------
@@ -41,25 +40,29 @@
 WINDOW *InitGame()
 {
     WINDOW *stdwin;
-    stdwin = initscr();
+    stdwin = initscr(); //initializing our main ncurses window that will contain any other windows
 
-    start_color();
+    start_color();                                      //initializing colors
     init_pair(GREEN_COLOR, COLOR_WHITE, COLOR_GREEN);
     init_pair(RED_COLOR, COLOR_WHITE, COLOR_RED);
-    init_pair(YELLOW_COLOR, COLOR_WHITE, COLOR_YELLOW);
     init_pair(WHITE_COLOR, COLOR_BLACK, COLOR_WHITE);
     init_pair(BLUE_COLOR, COLOR_WHITE, COLOR_BLUE);
     init_pair(MAGENTA_COLOR, COLOR_WHITE, COLOR_MAGENTA);
 
-    cbreak();
-    curs_set(0);
+    cbreak();       //makes user input immediately available to the program without having to click enter
+    curs_set(0);    //no cursor
     noecho();
     return stdwin;
 }
-
+//initializing WIN struct containing a window along with its properties
 WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x, char *title)
 {
     WIN *tempWin = (WIN *)malloc(sizeof(WIN));
+    if(tempWin == NULL)
+    {
+        fprintf(stderr,"Failed to allocate memory");
+        exit(1);
+    }
     tempWin->height = height;
     tempWin->width = width;
     tempWin->x = x;
@@ -74,6 +77,11 @@ WIN *InitWindow(WINDOW *parent, int width, int height, int y, int x, char *title
 PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char shape)
 {
     PLAYER *tempPlayer = (PLAYER *)malloc(sizeof(PLAYER));
+    if(tempPlayer == NULL)
+    {
+        fprintf(stderr,"Failed to allocate memory");
+        exit(1);
+    }
     tempPlayer->y = y;
     tempPlayer->x = x;
     tempPlayer->prevY = y;
@@ -93,6 +101,11 @@ PLAYER *InitPlayer(int y, int x, int minY, int maxY, int minX, int maxX, char sh
 STORK *InitStork(int x, int y, char shape, bool exists)
 {
     STORK *stork = (STORK *)malloc(sizeof(STORK));
+    if(stork == NULL)
+    {
+        fprintf(stderr,"Failed to allocate memory");
+        exit(1);
+    }
     stork->x = x;
     stork->y = y;
     stork->shape = shape;
@@ -104,6 +117,11 @@ STORK *InitStork(int x, int y, char shape, bool exists)
 CAR *InitCar(int length, int headX, DIR dir, char headShapeLeft, char headShapeRight, char bodyShape, CARTYPE carType, bool isFriendly, bool exists, SPEED speed)
 {
     CAR *tempCar = (CAR *)malloc(sizeof(CAR));
+    if(tempCar == NULL)
+    {
+        fprintf(stderr,"Failed to allocate memory");
+        exit(1);
+    }
     if (isFriendly)
     {
         tempCar->color = GREEN_COLOR;
@@ -151,7 +169,17 @@ CAR *InitCar(int length, int headX, DIR dir, char headShapeLeft, char headShapeR
 OBSTACLE *InitObstacle(OBSTACLE_TYPE type, WIN *map, bool exists)
 {
     OBSTACLE *obstacle = (OBSTACLE *)malloc(sizeof(OBSTACLE));
+    if(obstacle == NULL)
+    {
+        fprintf(stderr,"Failed to allocate memory");
+        exit(1);
+    }
     obstacle->positions = (int *)calloc(map->width, sizeof(int));
+    if(obstacle->positions == NULL)
+    {
+        fprintf(stderr,"Failed to allocate memory");
+        exit(1);
+    }
 
     obstacle->exists = exists;
 
@@ -190,10 +218,15 @@ OBSTACLE *InitObstacle(OBSTACLE_TYPE type, WIN *map, bool exists)
     }
     return obstacle;
 }
-
+//each lane contains both a car and an obstacle, however only one of them will be present during the game
 LANE *InitLanes(WIN *map, long int *settings)
 {
     LANE *lanes = (LANE *)malloc(sizeof(LANE) * (map->height - 4));
+    if(lanes == NULL)
+    {
+        fprintf(stderr,"Failed to allocate memory");
+        exit(1);
+    }
     for (int i = 0; i < map->height - 4; i++)
     {
         lanes[i].car = InitCar(RA(settings[3], settings[4]), RA(3, map->width - 3), RA(0, 1), '<', '>', 'X', RA(0, 2), !RA(0, 3), RA(0, 2), RA(0, 2));
@@ -205,6 +238,11 @@ LANE *InitLanes(WIN *map, long int *settings)
 TIMER *InitTimer(float gameTime)
 {
     TIMER *timer = (TIMER *)malloc(sizeof(TIMER));
+    if(timer == NULL)
+    {
+        fprintf(stderr,"Failed to allocate memory");
+        exit(1);
+    }
     timer->frame_no = 1;
     timer->points = 0;
     timer->gameTime = gameTime;
@@ -215,6 +253,7 @@ TIMER *InitTimer(float gameTime)
 //---------------- DRAW FUNCTIONS ----------------
 //------------------------------------------------
 
+//erasing content inside of window
 void CleanWin(WIN *window)
 {
     for (int i = 1; i < window->height - 1; i++) // Start from 1 to avoid clearing the border
@@ -301,7 +340,7 @@ void DrawObstacle(OBSTACLE *obstacle, WIN *map, int y)
 
 void PlayerMovement(PLAYER *player, char ch, TIMER *timer)
 {
-    if (timer->frame_no - player->frame >= FBM_PLAYER)
+    if (timer->frame_no - player->frame >= FBM_PLAYER)  //player can move only if FBM_PLAYER*FRAME_TIME ms have passed since his last move
     {
         if (ch == 'w' && player->y > player->minY)
         {
@@ -358,6 +397,7 @@ void StorkMovement(PLAYER *player, STORK *stork, TIMER *timer)
     }
 }
 
+//checking if the player is coliding with provided car
 bool CheckCarCollision(PLAYER *player, CAR *car, WIN *map)
 {
     if (player->y > 1 && player->y < map->height - 2 && car->exists && player->x >= car->leftX && player->x <= car->rightX)
@@ -367,6 +407,7 @@ bool CheckCarCollision(PLAYER *player, CAR *car, WIN *map)
     return FALSE;
 }
 
+//checking if the player is coliding with provided obstacle of a specific type
 bool CheckObstacleCollision(PLAYER *player, OBSTACLE *obstacle, WIN *map, int type)
 {
     if (player->y > 1 && player->y < map->height - 2 && obstacle->positions[player->x] == type && obstacle->exists == TRUE)
@@ -432,6 +473,7 @@ bool MoveWrappingCar(CAR *car, WIN *map)
     return FALSE;
 }
 
+//essentialy generates a whole new car outside of game window
 bool MoveDisapearingCar(CAR *car, WIN *map, long int *settings)
 {
     if (car->carType == DISAPPEARING)
@@ -469,7 +511,7 @@ bool MoveDisapearingCar(CAR *car, WIN *map, long int *settings)
 
 bool CanCarMove(CAR *car, PLAYER *player, int y)
 {
-    if (car->stops == TRUE && player->x > car->leftX - 5 && player->x < car->rightX + 5 && player->y == y)
+    if (car->stops == TRUE && player->x > car->leftX - 4 && player->x < car->rightX + 4 && player->y == y)
     {
         return FALSE;
     }
@@ -478,14 +520,16 @@ bool CanCarMove(CAR *car, PLAYER *player, int y)
 
 void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, long int *settings)
 {
-    if (timer->frame_no - car->frame >= car->speed)
+    if (timer->frame_no - car->frame >= car->speed) 
     {
         if (!(MoveBouncingCar(car, map)) && !MoveWrappingCar(car, map) && !MoveDisapearingCar(car, map, settings) && CanCarMove(car, player, y))
         {
             if (car->dir == LEFT)
             {
+                
                 if (CheckCarCollision(player, car, map) && car->isFriendly && player->x > player->minX && player->y == y && player->travels)
                 {
+                    //making player ride along with a friendly car
                     player->x -= 1;
                 }
                 car->leftX -= 1;
@@ -495,6 +539,7 @@ void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, long int *
             {
                 if (CheckCarCollision(player, car, map) && car->isFriendly && player->x < player->maxX && player->y == y && player->travels)
                 {
+                    //making player ride along with a friendly car
                     player->x += 1;
                 }
                 car->leftX += 1;
@@ -505,6 +550,7 @@ void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, long int *
     }
 }
 
+//if player collides with stork send them to their starting positions
 void ResetPlayerAndStork(PLAYER *player, STORK *stork, WIN *map, TIMER *timer)
 {
     if (player->x == stork->x && player->y == stork->y)
@@ -529,6 +575,7 @@ bool ResetPlayerPosition(PLAYER *player, WIN *map, TIMER *timer, CAR *car, OBSTA
         timer->points += END_POINTS;
         return TRUE;
     }
+    //checking if encountered obstacle/car can reset players position, and if yes doing so
     else if (!(!CheckCarCollision(player, car, map) || car->isFriendly) || CheckObstacleCollision(player, obstacle, map, 1))
     {
         if (player->y < player->prevY)
@@ -685,6 +732,7 @@ bool UpdateTimer(TIMER *timer, clock_t startFrame, clock_t endFrame)
     return FALSE;
 }
 
+//freeing allocated memory duhh
 void FreeMemory(WIN *map, WIN *status, TIMER *timer, PLAYER *player, LANE *lanes, STORK*stork)
 {
     free(timer);
@@ -707,11 +755,13 @@ void FreeMemory(WIN *map, WIN *status, TIMER *timer, PLAYER *player, LANE *lanes
 
 void Welcome(WINDOW *win, int highscore, char *ch)
 {
-    mvwprintw(win, 1, 2, "   Use 'wasd' to move around    ");
-    mvwprintw(win, 2, 2, "  Press 'x' to close the game   ");
-    mvwprintw(win, 3, 2, "Press 'r' to drive on green cars");
-    mvwprintw(win, 5, 2, "Press any key to start the game!");
-    mvwprintw(win, 7, 2, "    CURRENT HIGHSCORE: %d       ", highscore);
+    mvwprintw(win, 1, 2, "                Press n to record game and m to replay it                  ");
+    mvwprintw(win, 2, 2, "             Use 1/2/3 to play one of three maze-like levels               ");
+    mvwprintw(win, 3, 2, "           Use any other key to start the game in normal mode!             ");
+    mvwprintw(win, 5, 2, "              Use w/s/a/d to go up/down/left/right respectively            ");
+    mvwprintw(win, 6, 2, "                Use r to mount/unmount friendly (green) cars               ");
+    mvwprintw(win, 7, 2, "                       Use x to exit the game anytime                      ");
+    mvwprintw(win, 9, 2, "                          CURRENT HIGHSCORE: %d                            ", highscore);
     *ch = wgetch(win);
     wclear(win);
     wrefresh(win);
@@ -768,7 +818,7 @@ void EndOfReplay(WIN *status)
     mvwprintw(status->win, 2, status->width / 2 - 3, "REPLAY");
     wattroff(status->win, A_BOLD);
     wrefresh(status->win);
-    sleep(3);
+    sleep(2);
 }
 
 void Quit(WIN *status)
@@ -785,7 +835,7 @@ void Quit(WIN *status)
 void UpdateMainStatus(WIN *status, TIMER *timer)
 {
     CleanWin(status);
-    mvwprintw(status->win, 1, status->width / 2 - 5, "Time:%.2fs", timer->timeLeft);
+    mvwprintw(status->win, 1, status->width / 2 - 5, "Time: %.2fs", timer->timeLeft);
     mvwprintw(status->win, 2, status->width / 2 - 5, "Score: %d", timer->points);
     wrefresh(status->win);
 }
@@ -815,7 +865,6 @@ void ReplayLoop(PLAYER *player, STORK *stork, WIN *map, WIN *status, TIMER *time
         fscanf(replayFile, "%d%d%d%d%d%ld", &a, &a, &a, &a, &a, &a);
     }
     clock_t startFrame, endFrame;
-
     StartReplay(status);
     while (*ch = wgetch(map->win) != 'x')
     {
@@ -983,7 +1032,7 @@ int main()
     wrefresh(stdwin);
     PlayGame(map, status, player, stork, timer, lanes, settings, &ch, highscore);
     flushinp();
-    // freeing allocated memory
+    
     FreeMemory(map, status, timer, player, lanes, stork);
     endwin();
     return 0;

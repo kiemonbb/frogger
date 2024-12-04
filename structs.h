@@ -13,7 +13,6 @@ typedef enum
     RIVER,
     TWO_ROCKS,
     BIG_ROCK,
-    PONDS,
 } OBSTACLE_TYPE;
 
 typedef enum

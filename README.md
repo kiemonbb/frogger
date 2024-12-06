@@ -35,7 +35,7 @@ $ ./frogger
 ### In the main menu
 * Use <kbd>n</kbd> to play the game while recording it and then press <kbd>m</kbd> to replay it
 * Use <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> to play one of three maze-like levels
-* Use <kbd>4</kbd>/<kbd>5</kbd>/<kbd>6</kbd> * Use <kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> to play one of three progressively harder levels
+* Use <kbd>4</kbd>/<kbd>5</kbd>/<kbd>6</kbd> to play one of three progressively harder levels
 * Use any other key to start  the game in normal mode
   
 ### During the game

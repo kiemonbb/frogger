@@ -16,6 +16,13 @@
 #define MIN_CAR_LENGTH 6
 #define MAX_CAR_LENGTH 10
 
+
+#define FRIENDLY_CAR_CHANCE 3 //1 in x+1 cars is like that
+
+#define MIN_CAR_SPEED 0     //slowcar
+#define MAX_CAR_SPEED 2     //fastcar
+#define STORK_EXISTS 1      //superfastcar
+
 #define STATUS_HEIGHT 4
 
 #define FRAME_TIME 16.66666 // time interval between frames in ms
@@ -146,13 +153,13 @@ CAR *InitCar(int length, int headX, DIR dir, char headShapeLeft, char headShapeR
     tempCar->frame = 1;
     switch (speed)
     {
-    case 0:
+    case 2:
         tempCar->speed = SUPERFAST_CAR;
         break;
     case 1:
         tempCar->speed = FAST_CAR;
         break;
-    case 2:
+    case 0:
         tempCar->speed = SLOW_CAR;
         break;
     }
@@ -229,7 +236,7 @@ LANE *InitLanes(WIN *map, long int *settings)
     }
     for (int i = 0; i < map->height - 4; i++)
     {
-        lanes[i].car = InitCar(RA(settings[3], settings[4]), RA(3, map->width - 3), RA(0, 1), '<', '>', 'X', RA(0, 2), !RA(0, 3), RA(0, 2), RA(0, 2));
+        lanes[i].car = InitCar(RA(settings[3], settings[4]), RA(3, map->width - 3), RA(0, 1), '<', '>', 'X', RA(0, 2), !RA(0, settings[6]), RA(0, 2), RA(settings[7], settings[8]));
         lanes[i].obstacle = InitObstacle(RA(0, 2), map, !lanes[i].car->exists && RA(0, 1));
     }
     return lanes;
@@ -417,17 +424,17 @@ bool CheckObstacleCollision(PLAYER *player, OBSTACLE *obstacle, WIN *map, int ty
     return FALSE;
 }
 
-void ChangeCarSpeed(CAR *car)
+void ChangeCarSpeed(CAR *car,long int*settings)
 {
-    switch (car->speed = RA(0, 2))
+    switch (car->speed = RA(settings[7],settings[8]))
     {
-    case 0:
+    case 2:
         car->speed = SUPERFAST_CAR;
         break;
     case 1:
         car->speed = FAST_CAR;
         break;
-    case 2:
+    case 0:
         car->speed = SLOW_CAR;
         break;
     }
@@ -451,20 +458,20 @@ bool MoveBouncingCar(CAR *car, WIN *map)
     return FALSE;
 }
 
-bool MoveWrappingCar(CAR *car, WIN *map)
+bool MoveWrappingCar(CAR *car, WIN *map, long int *settings)
 {
     if (car->carType == WRAPPING)
     {
         if (car->dir == LEFT && car->rightX == 0)
         {
-            ChangeCarSpeed(car);
+            ChangeCarSpeed(car,settings);
             car->leftX = map->width - 2;
             car->rightX = map->width - 2 + car->length - 1;
             return TRUE;
         }
         else if (car->dir == RIGHT && car->leftX == map->width - 1)
         {
-            ChangeCarSpeed(car);
+            ChangeCarSpeed(car,settings);
             car->leftX = -car->length + 2;
             car->rightX = 1;
             return TRUE;
@@ -481,7 +488,7 @@ bool MoveDisapearingCar(CAR *car, WIN *map, long int *settings)
         if ((car->dir == LEFT && car->rightX == 0) || (car->dir == RIGHT && car->leftX == map->width - 1))
         {
             car->length = RA(settings[3], settings[4]);
-            ChangeCarSpeed(car);
+            ChangeCarSpeed(car, settings);
             if (car->isFriendly = !RA(0, 3))
             {
                 car->color = GREEN_COLOR;
@@ -522,7 +529,7 @@ void MoveCar(CAR *car, TIMER *timer, WIN *map, PLAYER *player, int y, long int *
 {
     if (timer->frame_no - car->frame >= car->speed) 
     {
-        if (!(MoveBouncingCar(car, map)) && !MoveWrappingCar(car, map) && !MoveDisapearingCar(car, map, settings) && CanCarMove(car, player, y))
+        if (!MoveBouncingCar(car, map) && !MoveWrappingCar(car, map,settings) && !MoveDisapearingCar(car, map, settings) && CanCarMove(car, player, y))
         {
             if (car->dir == LEFT)
             {
@@ -648,6 +655,37 @@ void HandleSettings(long int *settings, char *ch)
     {
         GetSettings(settings, "replay.txt");
     }
+    //setting max/min car length, chance of a car being a friendly car
+    //min/max car speed
+    //and if stork exists
+    else if(*ch =='4')
+    {
+        settings[3] = 3;
+        settings[4] = 6;
+        settings[6] = 2;
+        settings[7] = 0;
+        settings[8] = 1;
+        settings[9] = 0;
+    }
+    else if(*ch =='5')
+    {
+        settings[3] = 4;
+        settings[4] = 8;
+        settings[6] = 3;
+        settings[7] = 0;
+        settings[8] = 2;
+        settings[9] = 0;
+    }
+    else if(*ch =='6')
+    {
+        settings[3] = 5;
+        settings[4] = 10;
+        settings[6] = 4;
+        settings[7] = 1;
+        settings[8] = 2;
+        settings[9] = 1;
+
+    }
     else
     {
         GetSettings(settings, "settings.txt");
@@ -757,11 +795,12 @@ void Welcome(WINDOW *win, int highscore, char *ch)
 {
     mvwprintw(win, 1, 2, "                Press n to record game and m to replay it                  ");
     mvwprintw(win, 2, 2, "             Use 1/2/3 to play one of three maze-like levels               ");
-    mvwprintw(win, 3, 2, "           Use any other key to start the game in normal mode!             ");
-    mvwprintw(win, 5, 2, "              Use w/s/a/d to go up/down/left/right respectively            ");
-    mvwprintw(win, 6, 2, "                Use r to mount/unmount friendly (green) cars               ");
-    mvwprintw(win, 7, 2, "                       Use x to exit the game anytime                      ");
-    mvwprintw(win, 9, 2, "                          CURRENT HIGHSCORE: %d                            ", highscore);
+    mvwprintw(win, 3, 2, "     Use 4/5/6 to play one of three progressively more difficult level     ");
+    mvwprintw(win, 4, 2, "           Use any other key to start the game in normal mode!             ");
+    mvwprintw(win, 6, 2, "              Use w/s/a/d to go up/down/left/right respectively            ");
+    mvwprintw(win, 7, 2, "                Use r to mount/unmount friendly (green) cars               ");
+    mvwprintw(win, 8, 2, "                       Use x to exit the game anytime                      ");
+    mvwprintw(win, 10, 2, "                          CURRENT HIGHSCORE: %d                            ", highscore);
     *ch = wgetch(win);
     wclear(win);
     wrefresh(win);
@@ -1013,7 +1052,7 @@ int main()
     char ch;
     Welcome(stdwin, highscore, &ch);
 
-    long int settings[6] = {MAP_WIDTH, MAP_HEIGHT, GAME_TIME, MIN_CAR_LENGTH, MAX_CAR_LENGTH, time(NULL)};
+    long int settings[10] = {MAP_WIDTH, MAP_HEIGHT, GAME_TIME, MIN_CAR_LENGTH, MAX_CAR_LENGTH, time(NULL),FRIENDLY_CAR_CHANCE,MIN_CAR_SPEED,MAX_CAR_SPEED,STORK_EXISTS};
 
     HandleSettings(settings, &ch);
 
@@ -1023,7 +1062,7 @@ int main()
     WIN *map = InitWindow(stdwin, settings[0], settings[1], 0, 0, "frogger");
     WIN *status = InitWindow(stdwin, map->width, STATUS_HEIGHT, map->height, 0, "status");
     PLAYER *player = InitPlayer(map->height - 2, map->width / 2, 1, map->height - 2, 1, map->width - 2, 'O');
-    STORK *stork = InitStork(map->width - 2, 1, '4', TRUE);
+    STORK *stork = InitStork(map->width - 2, 1, '4', settings[9]);
     TIMER *timer = InitTimer(settings[2]);
     LANE *lanes = InitLanes(map, settings);
 

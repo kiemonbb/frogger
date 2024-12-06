@@ -795,7 +795,7 @@ void Welcome(WINDOW *win, int highscore, char *ch)
 {
     mvwprintw(win, 1, 2, "                Press n to record game and m to replay it                  ");
     mvwprintw(win, 2, 2, "             Use 1/2/3 to play one of three maze-like levels               ");
-    mvwprintw(win, 3, 2, "     Use 4/5/6 to play one of three progressively more difficult level     ");
+    mvwprintw(win, 3, 2, "         Use 4/5/6 to play one of three progressively harder levels         ");
     mvwprintw(win, 4, 2, "           Use any other key to start the game in normal mode!             ");
     mvwprintw(win, 6, 2, "              Use w/s/a/d to go up/down/left/right respectively            ");
     mvwprintw(win, 7, 2, "                Use r to mount/unmount friendly (green) cars               ");
